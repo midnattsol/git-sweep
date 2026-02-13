@@ -70,7 +70,9 @@ func (g *GitHub) MergedPRBranches(ctx context.Context, limit int) (map[string]bo
 		}
 
 		for _, pr := range prs {
-			if pr.GetMerged() && pr.Head != nil && pr.Head.Ref != nil {
+			// Note: pr.GetMerged() returns false for list endpoints (field is null)
+			// Use MergedAt instead which is populated in list responses
+			if pr.MergedAt != nil && pr.Head != nil && pr.Head.Ref != nil {
 				result[*pr.Head.Ref] = true
 			}
 			fetched++
