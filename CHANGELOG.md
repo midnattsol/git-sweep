@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/midnattsol/git-sweep/compare/v1.1.0...v1.1.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* remove goreleaser warnings and ignore docs in release ([f4de7b0](https://github.com/midnattsol/git-sweep/commit/f4de7b0d2df2d0bcf541bc87c573059a2e6c4e80))
+
 ## [1.1.0](https://github.com/midnattsol/git-sweep/compare/v1.0.0...v1.1.0) (2026-02-13)
 
 
