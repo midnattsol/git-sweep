@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/midnattsol/git-sweep/internal/worktree"
 )
 
@@ -104,26 +103,14 @@ func renderWorktreeLine(w worktree.Worktree, isBroken bool) string {
 // RenderWorktreeStats renders worktree statistics
 func RenderWorktreeStats(stats worktree.Stats) string {
 	var parts []string
-
 	parts = append(parts, fmt.Sprintf("Total %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Total))))
-
 	if stats.Broken > 0 {
 		parts = append(parts, fmt.Sprintf("Broken %s", WarningStyle.Render(fmt.Sprintf("%d", stats.Broken))))
 	}
-
 	if stats.Locked > 0 {
 		parts = append(parts, fmt.Sprintf("Locked %s", MutedStyle.Render(fmt.Sprintf("%d", stats.Locked))))
 	}
-
-	content := strings.Join(parts, MutedStyle.Render(" · "))
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DarkGray).
-		Padding(0, 1).
-		Render(content)
-
-	return fmt.Sprintf("\n%s\n", indent(box, 2))
+	return RenderStatsBox(parts)
 }
 
 // RenderWorktreeTip renders the tip for worktree command

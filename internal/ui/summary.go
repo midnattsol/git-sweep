@@ -3,11 +3,11 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/midnattsol/git-sweep/internal/git"
 	"github.com/midnattsol/git-sweep/internal/sweep"
+	"github.com/midnattsol/git-sweep/internal/timeutil"
 )
 
 const defaultWidth = 50
@@ -51,7 +51,7 @@ func RenderBranchList(result *sweep.Result, includeCandidates, showSkipped bool)
 	if len(eligible) > 0 {
 		b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Would delete")))
 		for _, br := range eligible {
-			age := formatBranchAge(br.Branch.LastCommit)
+			age := timeutil.FormatAge(br.Branch.LastCommit)
 			if age != "" {
 				b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
 					CheckStyle.Render(),
@@ -76,7 +76,7 @@ func RenderBranchList(result *sweep.Result, includeCandidates, showSkipped bool)
 			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Candidates (use --candidates to include)")))
 		}
 		for _, br := range candidates {
-			age := formatBranchAge(br.Branch.LastCommit)
+			age := timeutil.FormatAge(br.Branch.LastCommit)
 			icon := WarningStyle.Render("○")
 			if !includeCandidates {
 				icon = MutedStyle.Render("○")
@@ -103,7 +103,7 @@ func RenderBranchList(result *sweep.Result, includeCandidates, showSkipped bool)
 			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Skipped")))
 			for _, br := range skipped {
 				reason := formatSkipReason(br.Skip)
-				age := formatBranchAge(br.Branch.LastCommit)
+				age := timeutil.FormatAge(br.Branch.LastCommit)
 				if age != "" {
 					b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
 						CircleStyle.Render(),
@@ -140,7 +140,7 @@ func RenderSummary(stats sweep.Stats) string {
 		Padding(0, 1).
 		Render(content)
 
-	return fmt.Sprintf("\n%s\n", indent(box, 2))
+	return fmt.Sprintf("\n%s\n", Indent(box, 2))
 }
 
 // RenderDryRunTip renders the tip for dry run mode
@@ -181,7 +181,7 @@ func RenderDeleteSummary(deleted int, total int) string {
 		Padding(0, 1).
 		Render(content)
 
-	return fmt.Sprintf("\n%s\n\n", indent(box, 2))
+	return fmt.Sprintf("\n%s\n\n", Indent(box, 2))
 }
 
 // RenderNukeHeader renders the header for nuke mode
@@ -202,7 +202,7 @@ func RenderNukeSummary(deleted int, total int) string {
 		Padding(0, 1).
 		Render(content)
 
-	return fmt.Sprintf("\n%s\n\n", indent(box, 2))
+	return fmt.Sprintf("\n%s\n\n", Indent(box, 2))
 }
 
 // RenderError renders an error message
@@ -249,48 +249,4 @@ func filterSkipped(branches []sweep.BranchResult) []sweep.BranchResult {
 
 func formatSkipReason(reason git.SkipReason) string {
 	return string(reason)
-}
-
-func formatBranchAge(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-
-	d := time.Since(t)
-
-	switch {
-	case d < time.Hour*24:
-		return "today"
-	case d < time.Hour*24*2:
-		return "yesterday"
-	case d < time.Hour*24*7:
-		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
-	case d < time.Hour*24*30:
-		weeks := int(d.Hours() / 24 / 7)
-		if weeks == 1 {
-			return "1 week ago"
-		}
-		return fmt.Sprintf("%d weeks ago", weeks)
-	case d < time.Hour*24*365:
-		months := int(d.Hours() / 24 / 30)
-		if months == 1 {
-			return "1 month ago"
-		}
-		return fmt.Sprintf("%d months ago", months)
-	default:
-		years := int(d.Hours() / 24 / 365)
-		if years == 1 {
-			return "1 year ago"
-		}
-		return fmt.Sprintf("%d years ago", years)
-	}
-}
-
-func indent(s string, n int) string {
-	pad := strings.Repeat(" ", n)
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		lines[i] = pad + line
-	}
-	return strings.Join(lines, "\n")
 }

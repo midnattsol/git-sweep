@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -132,15 +133,7 @@ func DropMultiple(indices []int) (dropped int, errors []error) {
 	// Sort indices in descending order to avoid index shifting
 	sortedIndices := make([]int, len(indices))
 	copy(sortedIndices, indices)
-
-	// Simple bubble sort descending (small arrays)
-	for i := 0; i < len(sortedIndices); i++ {
-		for j := i + 1; j < len(sortedIndices); j++ {
-			if sortedIndices[i] < sortedIndices[j] {
-				sortedIndices[i], sortedIndices[j] = sortedIndices[j], sortedIndices[i]
-			}
-		}
-	}
+	sort.Sort(sort.Reverse(sort.IntSlice(sortedIndices)))
 
 	for _, idx := range sortedIndices {
 		if err := Drop(idx); err != nil {
@@ -168,42 +161,6 @@ func GetStats(stashes []Stash, oldDays int) Stats {
 	}
 
 	return stats
-}
-
-// FormatAge formats the stash age in a human-readable way
-func FormatAge(t time.Time) string {
-	if t.IsZero() {
-		return "unknown"
-	}
-
-	d := time.Since(t)
-
-	switch {
-	case d < time.Hour*24:
-		return "today"
-	case d < time.Hour*24*2:
-		return "yesterday"
-	case d < time.Hour*24*7:
-		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
-	case d < time.Hour*24*30:
-		weeks := int(d.Hours() / 24 / 7)
-		if weeks == 1 {
-			return "1 week ago"
-		}
-		return fmt.Sprintf("%d weeks ago", weeks)
-	case d < time.Hour*24*365:
-		months := int(d.Hours() / 24 / 30)
-		if months == 1 {
-			return "1 month ago"
-		}
-		return fmt.Sprintf("%d months ago", months)
-	default:
-		years := int(d.Hours() / 24 / 365)
-		if years == 1 {
-			return "1 year ago"
-		}
-		return fmt.Sprintf("%d years ago", years)
-	}
 }
 
 // IsOld returns true if the stash is older than the given number of days

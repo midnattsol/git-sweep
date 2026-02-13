@@ -3,9 +3,7 @@ package cmd
 import (
 	"fmt"
 	"sort"
-	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
 	"github.com/midnattsol/git-sweep/internal/tags"
@@ -114,145 +112,48 @@ func runTags(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Tags picker model
-
-type tagsPickerModel struct {
-	tags      []tags.Tag
-	selected  map[string]bool
-	cursor    int
-	quitting  bool
-	confirmed bool
+// tagItem implements ui.MultiPickerItem for tags.
+type tagItem struct {
+	tag tags.Tag
 }
 
-func newTagsPicker(tagList []tags.Tag) tagsPickerModel {
-	selected := make(map[string]bool)
-	// Pre-select all orphan tags
-	for _, t := range tagList {
-		selected[t.Name] = true
-	}
+func (t tagItem) Key() string {
+	return t.tag.Name
+}
 
+func (t tagItem) Label() string {
+	return t.tag.Name
+}
+
+func (t tagItem) Details() string {
+	return ""
+}
+
+func runTagsPicker(orphans []tags.Tag) ([]string, error) {
 	// Sort alphabetically
-	sorted := make([]tags.Tag, len(tagList))
-	copy(sorted, tagList)
+	sorted := make([]tags.Tag, len(orphans))
+	copy(sorted, orphans)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Name < sorted[j].Name
 	})
 
-	return tagsPickerModel{
-		tags:     sorted,
-		selected: selected,
-	}
-}
-
-func (m tagsPickerModel) Init() tea.Cmd {
-	return nil
-}
-
-func (m tagsPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-
-		case "enter":
-			m.confirmed = true
-			return m, tea.Quit
-
-		case "up", "k":
-			m.cursor--
-			if m.cursor < 0 {
-				m.cursor = len(m.tags) - 1
-			}
-
-		case "down", "j":
-			m.cursor++
-			if m.cursor >= len(m.tags) {
-				m.cursor = 0
-			}
-
-		case " ":
-			// Toggle selection
-			name := m.tags[m.cursor].Name
-			m.selected[name] = !m.selected[name]
-
-		case "a":
-			// Select all
-			for _, t := range m.tags {
-				m.selected[t.Name] = true
-			}
-
-		case "n":
-			// Select none
-			m.selected = make(map[string]bool)
-		}
+	// Build items
+	var items []ui.MultiPickerItem
+	for _, t := range sorted {
+		items = append(items, tagItem{tag: t})
 	}
 
-	return m, nil
-}
-
-func (m tagsPickerModel) View() string {
-	var b strings.Builder
-
-	b.WriteString(fmt.Sprintf("\n  %s\n\n", ui.MutedStyle.Render("Select orphan tags to delete:")))
-
-	for i, t := range m.tags {
-		cursor := "  "
-		if i == m.cursor {
-			cursor = ui.CursorStyle.Render() + " "
-		}
-
-		var checkbox string
-		if m.selected[t.Name] {
-			checkbox = ui.SuccessStyle.Render("▣")
-		} else {
-			checkbox = "▢"
-		}
-
-		name := t.Name
-		if i == m.cursor {
-			name = ui.SelectedStyle.Render(name)
-		}
-
-		b.WriteString(fmt.Sprintf("%s%s %s\n", cursor, checkbox, name))
+	// Pre-select all orphan tags
+	preSelected := make(map[string]bool)
+	for _, t := range sorted {
+		preSelected[t.Name] = true
 	}
 
-	// Help
-	b.WriteString(fmt.Sprintf("\n  %s\n", ui.Divider(45)))
-	b.WriteString(fmt.Sprintf("  %s\n\n",
-		ui.HelpStyle.Render("␣ toggle · a all · n none · ↵ confirm · q quit")))
-
-	return b.String()
-}
-
-func (m tagsPickerModel) Cancelled() bool {
-	return m.quitting
-}
-
-func (m tagsPickerModel) SelectedTags() []string {
-	var names []string
-	for name, selected := range m.selected {
-		if selected {
-			names = append(names, name)
-		}
-	}
-	return names
-}
-
-func runTagsPicker(orphans []tags.Tag) ([]string, error) {
-	m := newTagsPicker(orphans)
-	p := tea.NewProgram(m)
-
-	finalModel, err := p.Run()
-	if err != nil {
-		return nil, err
-	}
-
-	fm := finalModel.(tagsPickerModel)
-	if fm.Cancelled() {
-		return nil, nil
-	}
-
-	return fm.SelectedTags(), nil
+	return ui.RunMultiPicker(ui.MultiPickerConfig{
+		Title: "Select orphan tags to delete:",
+		Groups: []ui.MultiPickerGroup{
+			{Items: items},
+		},
+		PreSelected: preSelected,
+	})
 }

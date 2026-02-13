@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/midnattsol/git-sweep/internal/stash"
+	"github.com/midnattsol/git-sweep/internal/timeutil"
 )
 
 // RenderStashHeader renders the header for stash command
@@ -86,7 +86,7 @@ func RenderStashList(stashes []stash.Stash, oldDays int) string {
 				icon = WarningStyle.Render("○")
 			}
 
-			age := stash.FormatAge(s.Date)
+			age := timeutil.FormatAge(s.Date)
 			files := formatStashFiles(s.Files, 2)
 
 			b.WriteString(fmt.Sprintf("  %s %s  %s  %s",
@@ -127,22 +127,11 @@ func formatStashFiles(files []string, max int) string {
 // RenderStashStats renders stash statistics
 func RenderStashStats(stats stash.Stats) string {
 	var parts []string
-
 	parts = append(parts, fmt.Sprintf("Total %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Total))))
-
 	if stats.OldCount > 0 {
 		parts = append(parts, fmt.Sprintf("Old %s", WarningStyle.Render(fmt.Sprintf("%d", stats.OldCount))))
 	}
-
-	content := strings.Join(parts, MutedStyle.Render(" · "))
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DarkGray).
-		Padding(0, 1).
-		Render(content)
-
-	return fmt.Sprintf("\n%s\n", indent(box, 2))
+	return RenderStatsBox(parts)
 }
 
 // RenderStashTip renders the tip for stash command

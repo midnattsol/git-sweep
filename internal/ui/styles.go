@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"strings"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -105,13 +107,27 @@ var (
 
 // Divider returns a horizontal divider line
 func Divider(width int) string {
-	return DividerStyle.Render(repeat("─", width))
+	return DividerStyle.Render(strings.Repeat("─", width))
 }
 
-func repeat(s string, n int) string {
-	result := ""
-	for i := 0; i < n; i++ {
-		result += s
+// RenderStatsBox renders a stats box with parts joined by separator
+func RenderStatsBox(parts []string) string {
+	content := strings.Join(parts, MutedStyle.Render(" · "))
+	box := BoxStyle.Render(content)
+	return "\n" + Indent(box, 2) + "\n"
+}
+
+// RenderTip renders a tip message
+func RenderTip(message string) string {
+	return "\n  " + MutedStyle.Render("Tip:") + " " + message + "\n\n"
+}
+
+// Indent adds n spaces to each line
+func Indent(s string, n int) string {
+	pad := strings.Repeat(" ", n)
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = pad + line
 	}
-	return result
+	return strings.Join(lines, "\n")
 }

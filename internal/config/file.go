@@ -3,13 +3,15 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 // FileConfig represents the persistent configuration stored in a file
 type FileConfig struct {
-	Protected []string `yaml:"protected,omitempty"`
+	Protected  []string `yaml:"protected,omitempty"`
+	AutoUpdate bool     `yaml:"auto_update,omitempty"`
 }
 
 // configFileName is the name of the config file
@@ -141,4 +143,29 @@ func GetProtectedPatterns() ([]string, error) {
 	}
 
 	return patterns, nil
+}
+
+// SetAutoUpdate sets the auto-update preference
+func SetAutoUpdate(enabled bool) error {
+	cfg, err := LoadFileConfig()
+	if err != nil {
+		cfg = &FileConfig{}
+	}
+	cfg.AutoUpdate = enabled
+	return SaveFileConfig(cfg)
+}
+
+// IsAutoUpdateEnabled returns true if auto-update is enabled
+func IsAutoUpdateEnabled() bool {
+	// Check env var first
+	if v := os.Getenv("GIT_SWEEP_AUTO_UPDATE"); v != "" {
+		v = strings.ToLower(v)
+		return v == "true" || v == "1" || v == "yes"
+	}
+
+	cfg, err := LoadFileConfig()
+	if err != nil {
+		return false
+	}
+	return cfg.AutoUpdate
 }

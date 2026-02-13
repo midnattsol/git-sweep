@@ -3,12 +3,12 @@ package cmd
 import (
 	"fmt"
 	"sort"
-	"strings"
+	"strconv"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
 	"github.com/midnattsol/git-sweep/internal/stash"
+	"github.com/midnattsol/git-sweep/internal/timeutil"
 	"github.com/midnattsol/git-sweep/internal/ui"
 )
 
@@ -116,99 +116,29 @@ func runStash(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Stash picker model
-
-type stashPickerModel struct {
-	stashes   []stash.Stash
-	selected  map[int]bool
-	cursor    int
-	oldDays   int
-	quitting  bool
-	confirmed bool
+// stashItem implements ui.MultiPickerItem for stashes.
+type stashItem struct {
+	stash stash.Stash
 }
 
-func newStashPicker(stashes []stash.Stash, oldDays int) stashPickerModel {
-	selected := make(map[int]bool)
-	// Pre-select old stashes
-	for _, s := range stashes {
-		if s.IsOld(oldDays) {
-			selected[s.Index] = true
-		}
-	}
-
-	return stashPickerModel{
-		stashes:  stashes,
-		selected: selected,
-		oldDays:  oldDays,
-	}
+func (s stashItem) Key() string {
+	return strconv.Itoa(s.stash.Index)
 }
 
-func (m stashPickerModel) Init() tea.Cmd {
-	return nil
+func (s stashItem) Label() string {
+	return s.stash.Branch
 }
 
-func (m stashPickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-
-		case "enter":
-			m.confirmed = true
-			return m, tea.Quit
-
-		case "up", "k":
-			m.cursor--
-			if m.cursor < 0 {
-				m.cursor = len(m.stashes) - 1
-			}
-
-		case "down", "j":
-			m.cursor++
-			if m.cursor >= len(m.stashes) {
-				m.cursor = 0
-			}
-
-		case " ":
-			// Toggle selection
-			idx := m.stashes[m.cursor].Index
-			m.selected[idx] = !m.selected[idx]
-
-		case "a":
-			// Select all
-			for _, s := range m.stashes {
-				m.selected[s.Index] = true
-			}
-
-		case "n":
-			// Select none
-			m.selected = make(map[int]bool)
-
-		case "o":
-			// Select only old
-			m.selected = make(map[int]bool)
-			for _, s := range m.stashes {
-				if s.IsOld(m.oldDays) {
-					m.selected[s.Index] = true
-				}
-			}
-		}
-	}
-
-	return m, nil
+func (s stashItem) Details() string {
+	age := timeutil.FormatAge(s.stash.Date)
+	return fmt.Sprintf("%d files · %s", s.stash.FileCount, age)
 }
 
-func (m stashPickerModel) View() string {
-	var b strings.Builder
-
-	b.WriteString(fmt.Sprintf("\n  %s\n", ui.MutedStyle.Render("Select stashes to delete:")))
-
+func runStashPicker(stashes []stash.Stash, oldDays int) ([]int, error) {
 	// Group by age
 	var oldStashes, recentStashes []stash.Stash
-	for _, s := range m.stashes {
-		if s.IsOld(m.oldDays) {
+	for _, s := range stashes {
+		if s.IsOld(oldDays) {
 			oldStashes = append(oldStashes, s)
 		} else {
 			recentStashes = append(recentStashes, s)
@@ -223,88 +153,68 @@ func (m stashPickerModel) View() string {
 		return recentStashes[i].Date.After(recentStashes[j].Date)
 	})
 
-	cursorIdx := 0
+	// Build groups
+	var groups []ui.MultiPickerGroup
 
 	if len(oldStashes) > 0 {
-		b.WriteString(fmt.Sprintf("\n  %s\n", ui.WarningStyle.Render(fmt.Sprintf("Old (>%d days)", m.oldDays))))
+		var items []ui.MultiPickerItem
 		for _, s := range oldStashes {
-			b.WriteString(m.renderStashLine(s, cursorIdx))
-			cursorIdx++
+			items = append(items, stashItem{stash: s})
 		}
+		groups = append(groups, ui.MultiPickerGroup{
+			Header: fmt.Sprintf("Old (>%d days)", oldDays),
+			Style:  ui.WarningStyle.Render,
+			Items:  items,
+		})
 	}
 
 	if len(recentStashes) > 0 {
-		b.WriteString(fmt.Sprintf("\n  %s\n", ui.MutedStyle.Render("Recent")))
+		var items []ui.MultiPickerItem
 		for _, s := range recentStashes {
-			b.WriteString(m.renderStashLine(s, cursorIdx))
-			cursorIdx++
+			items = append(items, stashItem{stash: s})
 		}
+		groups = append(groups, ui.MultiPickerGroup{
+			Header: "Recent",
+			Style:  ui.MutedStyle.Render,
+			Items:  items,
+		})
 	}
 
-	// Help
-	b.WriteString(fmt.Sprintf("\n  %s\n", ui.Divider(55)))
-	b.WriteString(fmt.Sprintf("  %s\n\n",
-		ui.HelpStyle.Render("␣ toggle · a all · o old · n none · ↵ confirm · q quit")))
-
-	return b.String()
-}
-
-func (m stashPickerModel) renderStashLine(s stash.Stash, displayIdx int) string {
-	cursor := "  "
-	if displayIdx == m.cursor {
-		cursor = ui.CursorStyle.Render() + " "
+	// Pre-select old stashes
+	preSelected := make(map[string]bool)
+	for _, s := range oldStashes {
+		preSelected[strconv.Itoa(s.Index)] = true
 	}
 
-	var checkbox string
-	if m.selected[s.Index] {
-		checkbox = ui.SuccessStyle.Render("▣")
-	} else {
-		checkbox = "▢"
+	// Extra key handler for "o" (select only old)
+	extraKeys := map[string]func(m *ui.MultiPickerModel){
+		"o": func(m *ui.MultiPickerModel) {
+			m.ClearSelection()
+			for _, s := range oldStashes {
+				m.SetSelected(strconv.Itoa(s.Index), true)
+			}
+		},
 	}
 
-	name := s.Branch
-	if displayIdx == m.cursor {
-		name = ui.SelectedStyle.Render(name)
-	}
-
-	age := stash.FormatAge(s.Date)
-	files := fmt.Sprintf("%d files", s.FileCount)
-
-	return fmt.Sprintf("%s%s %s  %s  %s\n",
-		cursor,
-		checkbox,
-		name,
-		ui.MutedStyle.Render(files),
-		ui.MutedStyle.Render(age))
-}
-
-func (m stashPickerModel) Cancelled() bool {
-	return m.quitting
-}
-
-func (m stashPickerModel) SelectedIndices() []int {
-	var indices []int
-	for idx, selected := range m.selected {
-		if selected {
-			indices = append(indices, idx)
-		}
-	}
-	return indices
-}
-
-func runStashPicker(stashes []stash.Stash, oldDays int) ([]int, error) {
-	m := newStashPicker(stashes, oldDays)
-	p := tea.NewProgram(m)
-
-	finalModel, err := p.Run()
+	selected, err := ui.RunMultiPicker(ui.MultiPickerConfig{
+		Title:       "Select stashes to delete:",
+		Groups:      groups,
+		PreSelected: preSelected,
+		ExtraKeys:   extraKeys,
+		ExtraHelp:   "o old",
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	fm := finalModel.(stashPickerModel)
-	if fm.Cancelled() {
+	if selected == nil {
 		return nil, nil
 	}
 
-	return fm.SelectedIndices(), nil
+	// Convert string keys back to indices
+	var indices []int
+	for _, key := range selected {
+		idx, _ := strconv.Atoi(key)
+		indices = append(indices, idx)
+	}
+	return indices, nil
 }

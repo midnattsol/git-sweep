@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/google/go-github/v60/github"
+	"github.com/midnattsol/git-sweep/internal/config"
 )
 
 const (
@@ -74,13 +74,6 @@ func CheckForUpdate(ctx context.Context) (*Release, bool, error) {
 func (r *Release) GetAssetForPlatform() (string, error) {
 	osName := runtime.GOOS
 	arch := runtime.GOARCH
-
-	// Map Go arch names to our release naming
-	if arch == "amd64" {
-		arch = "amd64"
-	} else if arch == "arm64" {
-		arch = "arm64"
-	}
 
 	expectedName := fmt.Sprintf("git-sweep-%s-%s.tar.gz", osName, arch)
 
@@ -232,79 +225,12 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-// Config file handling for auto-update preference
-
-// ConfigPath returns the path to the config file
-func ConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		configDir = os.Getenv("HOME")
-	}
-	return filepath.Join(configDir, "git-sweep", "config.json")
-}
-
-// Config holds user preferences
-type Config struct {
-	AutoUpdate bool `json:"auto_update"`
-}
-
-// LoadConfig loads the config file
-func LoadConfig() (*Config, error) {
-	cfg := &Config{}
-
-	data, err := os.ReadFile(ConfigPath())
-	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil
-		}
-		return nil, err
-	}
-
-	if err := json.Unmarshal(data, cfg); err != nil {
-		return nil, err
-	}
-
-	return cfg, nil
-}
-
-// SaveConfig saves the config file
-func SaveConfig(cfg *Config) error {
-	path := ConfigPath()
-
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
-	}
-
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, data, 0644)
-}
-
-// SetAutoUpdate sets the auto-update preference
+// SetAutoUpdate sets the auto-update preference (delegates to config package)
 func SetAutoUpdate(enabled bool) error {
-	cfg, err := LoadConfig()
-	if err != nil {
-		cfg = &Config{}
-	}
-	cfg.AutoUpdate = enabled
-	return SaveConfig(cfg)
+	return config.SetAutoUpdate(enabled)
 }
 
-// IsAutoUpdateEnabled returns true if auto-update is enabled
+// IsAutoUpdateEnabled returns true if auto-update is enabled (delegates to config package)
 func IsAutoUpdateEnabled() bool {
-	// Check env var first
-	if v := os.Getenv("GIT_SWEEP_AUTO_UPDATE"); v != "" {
-		v = strings.ToLower(v)
-		return v == "true" || v == "1" || v == "yes"
-	}
-
-	cfg, err := LoadConfig()
-	if err != nil {
-		return false
-	}
-	return cfg.AutoUpdate
+	return config.IsAutoUpdateEnabled()
 }

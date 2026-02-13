@@ -5,7 +5,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/midnattsol/git-sweep/internal/tags"
 )
 
@@ -67,22 +66,11 @@ func RenderTagList(tagList []tags.Tag) string {
 // RenderTagStats renders tag statistics
 func RenderTagStats(stats tags.Stats) string {
 	var parts []string
-
 	parts = append(parts, fmt.Sprintf("Total %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Total))))
-
 	if stats.Orphans > 0 {
 		parts = append(parts, fmt.Sprintf("Orphans %s", WarningStyle.Render(fmt.Sprintf("%d", stats.Orphans))))
 	}
-
-	content := strings.Join(parts, MutedStyle.Render(" · "))
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DarkGray).
-		Padding(0, 1).
-		Render(content)
-
-	return fmt.Sprintf("\n%s\n", indent(box, 2))
+	return RenderStatsBox(parts)
 }
 
 // RenderTagsTip renders the tip for tags command
