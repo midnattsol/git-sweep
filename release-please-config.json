@@ -1,9 +1,0 @@
-{
-  "packages": {
-    ".": {
-      "release-type": "go",
-      "bump-minor-pre-major": true
-    }
-  },
-  "last-release-sha": "a85aed30d984891aaaeb19b35fd6a7a793d866a3"
-}
