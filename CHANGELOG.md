@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/midnattsol/git-sweep/compare/v2.0.1...v2.1.0) (2026-02-13)
+
+
+### Features
+
+* add stash subcommand for cleaning old stashes ([67ae951](https://github.com/midnattsol/git-sweep/commit/67ae951c1ef34201a3b2871bff394d8cbca1ac51))
+
 ## [2.0.1](https://github.com/midnattsol/git-sweep/compare/v2.0.0...v2.0.1) (2026-02-13)
 
 
