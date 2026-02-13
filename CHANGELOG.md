@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/midnattsol/git-sweep/compare/v1.2.0...v1.3.0) (2026-02-13)
+
+
+### Features
+
+* add multi-provider support (GitHub, GitLab, Bitbucket) ([d38a653](https://github.com/midnattsol/git-sweep/commit/d38a6538fc7dcf74c715fc352dafce81a06998f2))
+
+
+### Bug Fixes
+
+* add actions write permission to release-please ([f635c11](https://github.com/midnattsol/git-sweep/commit/f635c11b896aa2709dce73069b58aea806cd24c3))
+* configure release-please to skip github release creation ([483af2e](https://github.com/midnattsol/git-sweep/commit/483af2e537b8778cf12ecf0fa82578ea94439465))
+* separate release-please and goreleaser workflows ([51ce432](https://github.com/midnattsol/git-sweep/commit/51ce432f9fd0a06b2761302d3d69587424c873aa))
+
 ## [1.2.0](https://github.com/midnattsol/git-sweep/compare/v1.1.1...v1.2.0) (2026-02-13)
 
 
