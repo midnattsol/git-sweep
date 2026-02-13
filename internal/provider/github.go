@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
-	"strings"
 
 	"github.com/google/go-github/v60/github"
 )
@@ -36,24 +34,13 @@ func NewGitHub(info *RepoInfo, token string) (*GitHub, error) {
 	}, nil
 }
 
-// getGitHubToken retrieves a GitHub token from environment or gh CLI
+// getGitHubToken retrieves a GitHub token from environment
 func getGitHubToken() (string, error) {
-	// First try GITHUB_TOKEN env var
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		return token, nil
 	}
 
-	// Fallback to gh auth token
-	cmd := exec.Command("gh", "auth", "token")
-	out, err := cmd.Output()
-	if err == nil {
-		token := strings.TrimSpace(string(out))
-		if token != "" {
-			return token, nil
-		}
-	}
-
-	return "", fmt.Errorf("no GitHub token found. Set GITHUB_TOKEN or run: gh auth login")
+	return "", fmt.Errorf("GITHUB_TOKEN not set. Create one at https://github.com/settings/tokens")
 }
 
 // Name returns the provider name

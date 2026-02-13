@@ -55,6 +55,9 @@ Use --nuke for interactive mode to delete any branch.`,
 
 	// Add subcommands
 	cmd.AddCommand(NewUpdateCmd())
+	cmd.AddCommand(NewStashCmd())
+	cmd.AddCommand(NewTagsCmd())
+	cmd.AddCommand(NewWorktreeCmd())
 
 	return cmd
 }
