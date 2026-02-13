@@ -148,7 +148,7 @@ func runSafe(cfg *config.Config) error {
 
 	// Show results
 	fmt.Print(ui.RenderBranchList(result, !flagOnlyMerged, !flagBrief))
-	fmt.Print(ui.RenderSummary(result.Stats))
+	fmt.Print(ui.RenderSummary(result.Stats, !flagOnlyMerged))
 
 	// Count branches to delete
 	toDeleteCount := sweep.CountToDelete(result, !flagOnlyMerged)

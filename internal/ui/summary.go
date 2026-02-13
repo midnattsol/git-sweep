@@ -43,56 +43,33 @@ func RenderMode(dryRun bool) string {
 }
 
 // RenderBranchList renders the list of branches with their status
-func RenderBranchList(result *sweep.Result, includeCandidates, showSkipped bool) string {
+func RenderBranchList(result *sweep.Result, includeGone, showSkipped bool) string {
 	var b strings.Builder
 
-	// Eligible branches (merged PR)
-	eligible := filterEligible(result.Branches)
-	if len(eligible) > 0 {
-		b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Would delete")))
-		for _, br := range eligible {
+	// Branches to delete
+	toDelete := filterToDelete(result.Branches, includeGone)
+	if len(toDelete) > 0 {
+		b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("To delete")))
+		for _, br := range toDelete {
 			age := timeutil.FormatAge(br.Branch.LastCommit)
 			if age != "" {
-				b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
-					CheckStyle.Render(),
-					BranchStyle.Render(br.Branch.Name),
-					MutedStyle.Render("merged PR"),
-					MutedStyle.Render(age)))
-			} else {
 				b.WriteString(fmt.Sprintf("  %s %s  %s\n",
 					CheckStyle.Render(),
 					BranchStyle.Render(br.Branch.Name),
-					MutedStyle.Render("merged PR")))
+					MutedStyle.Render(age)))
+			} else {
+				b.WriteString(fmt.Sprintf("  %s %s\n",
+					CheckStyle.Render(),
+					BranchStyle.Render(br.Branch.Name)))
 			}
 		}
 	}
 
-	// Candidates (upstream gone, no merged PR)
-	candidates := filterCandidates(result.Branches)
-	if len(candidates) > 0 {
-		if includeCandidates {
-			b.WriteString(fmt.Sprintf("\n  %s\n", WarningStyle.Render("Candidates (--candidates)")))
-		} else {
-			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Candidates (use --candidates to include)")))
-		}
-		for _, br := range candidates {
-			age := timeutil.FormatAge(br.Branch.LastCommit)
-			icon := WarningStyle.Render("○")
-			if !includeCandidates {
-				icon = MutedStyle.Render("○")
-			}
-			if age != "" {
-				b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
-					icon,
-					br.Branch.Name,
-					MutedStyle.Render("upstream gone"),
-					MutedStyle.Render(age)))
-			} else {
-				b.WriteString(fmt.Sprintf("  %s %s  %s\n",
-					icon,
-					br.Branch.Name,
-					MutedStyle.Render("upstream gone")))
-			}
+	// Show extra branches available without --only-merged
+	if !includeGone {
+		extra := filterCandidates(result.Branches)
+		if len(extra) > 0 {
+			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render(fmt.Sprintf("+%d more without --only-merged", len(extra)))))
 		}
 	}
 
@@ -124,12 +101,16 @@ func RenderBranchList(result *sweep.Result, includeCandidates, showSkipped bool)
 }
 
 // RenderSummary renders the summary stats
-func RenderSummary(stats sweep.Stats) string {
-	var parts []string
+func RenderSummary(stats sweep.Stats, includeGone bool) string {
+	var toDelete int
+	if includeGone {
+		toDelete = stats.Candidates
+	} else {
+		toDelete = stats.Eligible
+	}
 
-	parts = append(parts, fmt.Sprintf("Eligible %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Eligible))))
-	candidatesOnly := stats.Candidates - stats.Eligible
-	parts = append(parts, fmt.Sprintf("Candidates %s", BoldStyle.Render(fmt.Sprintf("%d", candidatesOnly))))
+	var parts []string
+	parts = append(parts, fmt.Sprintf("To delete %s", BoldStyle.Render(fmt.Sprintf("%d", toDelete))))
 	parts = append(parts, fmt.Sprintf("Skipped %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Skipped))))
 
 	content := strings.Join(parts, MutedStyle.Render(" · "))
@@ -217,10 +198,10 @@ func RenderNoBranches() string {
 
 // Helper functions
 
-func filterEligible(branches []sweep.BranchResult) []sweep.BranchResult {
+func filterToDelete(branches []sweep.BranchResult, includeGone bool) []sweep.BranchResult {
 	var result []sweep.BranchResult
 	for _, b := range branches {
-		if b.Eligible {
+		if b.Eligible || (includeGone && b.Candidate) {
 			result = append(result, b)
 		}
 	}
