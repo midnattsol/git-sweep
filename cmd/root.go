@@ -9,7 +9,7 @@ import (
 
 	"github.com/midnattsol/git-sweep/internal/config"
 	"github.com/midnattsol/git-sweep/internal/git"
-	"github.com/midnattsol/git-sweep/internal/github"
+	"github.com/midnattsol/git-sweep/internal/provider"
 	"github.com/midnattsol/git-sweep/internal/sweep"
 	"github.com/midnattsol/git-sweep/internal/ui"
 	"github.com/midnattsol/git-sweep/internal/update"
@@ -21,7 +21,7 @@ var (
 	flagExecute bool
 	flagNuke    bool
 	flagYes     bool
-	flagVerbose bool
+	flagBrief   bool
 	flagRemote  string
 	flagNoColor bool
 )
@@ -43,7 +43,7 @@ Use --nuke for interactive mode to delete any branch.`,
 	cmd.Flags().BoolVar(&flagExecute, "execute", false, "Actually delete branches (default: dry-run)")
 	cmd.Flags().BoolVar(&flagNuke, "nuke", false, "Interactive mode: select any branches to delete")
 	cmd.Flags().BoolVar(&flagYes, "yes", false, "Skip confirmation in nuke mode (delete all non-protected)")
-	cmd.Flags().BoolVarP(&flagVerbose, "verbose", "v", false, "Show skip reasons")
+	cmd.Flags().BoolVarP(&flagBrief, "brief", "b", false, "Hide skipped branches (default: show all)")
 	cmd.Flags().StringVar(&flagRemote, "remote", "", "Remote name (default: origin, env: GIT_SWEEP_REMOTE)")
 	cmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Disable colors (env: GIT_SWEEP_NO_COLOR)")
 
@@ -88,25 +88,35 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runSafe(cfg *config.Config) error {
-	fmt.Print(ui.RenderHeader())
+	fmt.Print(ui.RenderHeaderWithMode(!flagExecute))
 
-	// Create GitHub client
-	var ghClient *github.Client
+	// Detect provider
+	var prov provider.Provider
 	var mergedPRs map[string]bool
 
 	ms := ui.NewMultiSpinner()
 	ms.Add(fmt.Sprintf("Fetching %s...", cfg.Remote), func() error {
 		return git.FetchAndPrune(cfg.Remote)
 	})
-	ms.Add("Connecting to GitHub...", func() error {
-		var err error
-		ghClient, err = github.NewClient(cfg.Remote)
+	ms.Add("Detecting provider...", func() error {
+		info, err := provider.DetectFromRemote(cfg.Remote)
+		if err != nil {
+			return err
+		}
+		provCfg := &provider.Config{
+			GitHubToken:          cfg.GitHubToken,
+			GitLabToken:          cfg.GitLabToken,
+			GitLabURL:            cfg.GitLabURL,
+			BitbucketUsername:    cfg.BitbucketUsername,
+			BitbucketAppPassword: cfg.BitbucketAppPassword,
+		}
+		prov, err = provider.New(info, provCfg)
 		return err
 	})
 	ms.Add("Loading merged PRs...", func() error {
 		var err error
 		ctx := context.Background()
-		mergedPRs, err = ghClient.MergedPRBranches(ctx, cfg.Limit)
+		mergedPRs, err = prov.MergedPRBranches(ctx, cfg.Limit)
 		return err
 	})
 
@@ -125,16 +135,13 @@ func runSafe(cfg *config.Config) error {
 		return err
 	}
 
-	// Show mode
-	fmt.Print(ui.RenderMode(!flagExecute))
-
 	// Execute if requested
 	if flagExecute {
 		sweep.Execute(result)
 	}
 
-	// Show results
-	fmt.Print(ui.RenderBranchList(result, !flagExecute, flagVerbose))
+	// Show results (verbose by default, brief hides skipped)
+	fmt.Print(ui.RenderBranchList(result, !flagExecute, !flagBrief))
 	fmt.Print(ui.RenderSummary(result.Stats, !flagExecute))
 
 	// Show tip if dry run and there are eligible branches
@@ -151,12 +158,52 @@ func runSafe(cfg *config.Config) error {
 }
 
 func runNuke(cfg *config.Config) error {
-	fmt.Print(ui.RenderHeader())
+	fmt.Print(ui.RenderNukeHeader())
 
-	// Fetch with spinner
-	if err := ui.RunWithSpinner(fmt.Sprintf("Fetching %s...", cfg.Remote), func() error {
+	// Variables for provider and merged PRs
+	var prov provider.Provider
+	var mergedPRs map[string]bool
+	var providerErr error
+
+	ms := ui.NewMultiSpinner()
+	ms.Add(fmt.Sprintf("Fetching %s...", cfg.Remote), func() error {
 		return git.FetchAndPrune(cfg.Remote)
-	}); err != nil {
+	})
+	ms.Add("Detecting provider...", func() error {
+		info, err := provider.DetectFromRemote(cfg.Remote)
+		if err != nil {
+			providerErr = err
+			return nil // Don't fail, nuke can work without provider
+		}
+		provCfg := &provider.Config{
+			GitHubToken:          cfg.GitHubToken,
+			GitLabToken:          cfg.GitLabToken,
+			GitLabURL:            cfg.GitLabURL,
+			BitbucketUsername:    cfg.BitbucketUsername,
+			BitbucketAppPassword: cfg.BitbucketAppPassword,
+		}
+		prov, err = provider.New(info, provCfg)
+		if err != nil {
+			providerErr = err
+			return nil // Don't fail, nuke can work without provider
+		}
+		return nil
+	})
+	ms.Add("Loading merged PRs...", func() error {
+		if prov == nil {
+			return nil // Skip if no provider
+		}
+		ctx := context.Background()
+		var err error
+		mergedPRs, err = prov.MergedPRBranches(ctx, cfg.Limit)
+		if err != nil {
+			providerErr = err
+			return nil // Don't fail, just won't have PR info
+		}
+		return nil
+	})
+
+	if err := ms.Run(); err != nil {
 		if err.Error() == "cancelled" {
 			return nil
 		}
@@ -164,8 +211,8 @@ func runNuke(cfg *config.Config) error {
 		return err
 	}
 
-	// Analyze for nuke
-	result, err := sweep.AnalyzeForNuke(cfg)
+	// Analyze for nuke (with or without merged PRs)
+	result, err := sweep.AnalyzeForNuke(cfg, mergedPRs)
 	if err != nil {
 		fmt.Print(ui.RenderError(err.Error()))
 		return err
@@ -188,7 +235,7 @@ func runNuke(cfg *config.Config) error {
 		}
 	} else {
 		// Interactive picker
-		toDelete, err = ui.RunPicker(result)
+		toDelete, err = ui.RunPicker(result, providerErr)
 		if err != nil {
 			fmt.Print(ui.RenderError(err.Error()))
 			return err

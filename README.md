@@ -4,12 +4,12 @@ Safe local branch cleanup for squash-merge workflows.
 
 ## Features
 
-- **Safe mode**: Only deletes branches with gone upstream AND merged PR
+- **Safe mode**: Only deletes branches with gone upstream AND merged PR/MR
 - **Nuke mode**: Interactive multi-select to delete any branch, with smart suggestions
+- **Multi-provider**: GitHub, GitLab (including self-hosted), and Bitbucket Cloud
 - **Self-updating**: Built-in update command with optional auto-update
 - **Pretty UI**: Spinners, colors, and charm-style output
 - **Configurable**: Environment variables for per-project settings (great with direnv)
-- **No `gh` required**: Uses GitHub API directly (just needs a token)
 
 ## Installation
 
@@ -45,17 +45,17 @@ make install
 
 Deletes local branches that:
 1. Have an upstream that no longer exists (after `git fetch --prune`)
-2. Have a merged PR on GitHub
+2. Have a merged PR/MR (requires provider token, see [Authentication](#authentication))
 
 ```bash
-# Dry run (default)
+# Dry run (default) - shows all branches by default
 git sweep
 
 # Actually delete
 git sweep --execute
 
-# Show skip reasons with branch age
-git sweep --verbose
+# Brief output (hide skipped branches)
+git sweep --brief
 ```
 
 ### Nuke mode
@@ -63,7 +63,7 @@ git sweep --verbose
 Interactive multi-select to delete any branch (except protected ones).
 
 Branches are categorized and pre-selected based on their status:
-- **Suggested**: Stale branches (no upstream, no recent commits) - pre-selected
+- **Suggested**: Branches with merged PRs, or stale without upstream - pre-selected
 - **Gone**: Upstream deleted but no merged PR found - pre-selected
 - **Orphan**: No upstream but has recent commits
 - **Active**: Has active upstream
@@ -100,9 +100,10 @@ git sweep update --auto-update=false
 
 Configure via environment variables. Great with [direnv](https://direnv.net/) for per-project settings.
 
+### General settings
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GITHUB_TOKEN` | - | GitHub token (falls back to `gh auth token`) |
 | `GIT_SWEEP_REMOTE` | `origin` | Remote to use |
 | `GIT_SWEEP_PROTECTED` | `master,main,develop,development,staging,release/**,hotfix/**` | Comma-separated protected patterns |
 | `GIT_SWEEP_LIMIT` | `50` | Max PRs to scan |
@@ -110,28 +111,66 @@ Configure via environment variables. Great with [direnv](https://direnv.net/) fo
 | `GIT_SWEEP_AUTO_UPDATE` | `false` | Enable auto-update check |
 | `GIT_SWEEP_NO_COLOR` | `false` | Disable colors |
 
+### Provider authentication
+
+The provider is auto-detected from your git remote URL.
+
+| Variable | Provider | Description |
+|----------|----------|-------------|
+| `GITHUB_TOKEN` | GitHub | Personal access token (falls back to `gh auth token`) |
+| `GITLAB_TOKEN` | GitLab | Personal access token with `read_api` scope |
+| `GITLAB_URL` | GitLab | Self-hosted GitLab URL (default: `https://gitlab.com`) |
+| `BITBUCKET_USERNAME` | Bitbucket | Bitbucket username |
+| `BITBUCKET_APP_PASSWORD` | Bitbucket | Bitbucket app password with `pullrequest:read` scope |
+
 ### Example `.envrc`
 
 ```bash
-# .envrc
+# .envrc for GitHub
 export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 export GIT_SWEEP_PROTECTED="master,main,release/**"
-export GIT_SWEEP_REMOTE="upstream"
 export GIT_SWEEP_STALE_DAYS="60"
 export GIT_SWEEP_AUTO_UPDATE="true"
 ```
 
+```bash
+# .envrc for GitLab (self-hosted)
+export GITLAB_TOKEN="glpat-xxxxxxxxxxxx"
+export GITLAB_URL="https://gitlab.mycompany.com"
+export GIT_SWEEP_PROTECTED="master,main,release/**"
+```
+
+```bash
+# .envrc for Bitbucket
+export BITBUCKET_USERNAME="myuser"
+export BITBUCKET_APP_PASSWORD="xxxxxxxxxxxx"
+export GIT_SWEEP_PROTECTED="master,main"
+```
+
 ## Authentication
 
-`git-sweep` needs a GitHub token to check PR status. It looks for:
+`git-sweep` auto-detects the provider from your git remote URL and needs an appropriate token.
+
+### GitHub
 
 1. `GITHUB_TOKEN` environment variable (recommended)
-2. Falls back to `gh auth token` if `gh` CLI is installed and authenticated
+2. Falls back to `gh auth token` if `gh` CLI is installed
 
-To create a token:
-1. Go to https://github.com/settings/tokens
-2. Generate a new token with `repo` scope
-3. Set it as `GITHUB_TOKEN` in your environment
+To create a token: [github.com/settings/tokens](https://github.com/settings/tokens) with `repo` scope.
+
+### GitLab
+
+Set `GITLAB_TOKEN` with a personal access token with `read_api` scope.
+
+For self-hosted GitLab, also set `GITLAB_URL` (e.g., `https://gitlab.mycompany.com`).
+
+To create a token: GitLab > User Settings > Access Tokens.
+
+### Bitbucket Cloud
+
+Set both `BITBUCKET_USERNAME` and `BITBUCKET_APP_PASSWORD`.
+
+To create an app password: Bitbucket > Personal Settings > App passwords with `Repositories: Read` and `Pull requests: Read` permissions.
 
 ## Protected Branch Patterns
 
@@ -168,7 +207,7 @@ When commits are pushed to `develop`, [release-please](https://github.com/google
 ## Requirements
 
 - `git` CLI
-- GitHub token (via `GITHUB_TOKEN` env var or `gh auth token`)
+- Provider token (GitHub, GitLab, or Bitbucket - see Authentication section)
 
 ## License
 

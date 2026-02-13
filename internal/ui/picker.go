@@ -22,14 +22,15 @@ type PickerItem struct {
 
 // PickerModel is a bubbletea model for multi-select
 type PickerModel struct {
-	items     []PickerItem
-	cursor    int
-	quitting  bool
-	confirmed bool
+	items       []PickerItem
+	cursor      int
+	quitting    bool
+	confirmed   bool
+	providerErr error // Error from provider detection (shown in UI)
 }
 
 // NewPicker creates a new picker from sweep results
-func NewPicker(result *sweep.Result) PickerModel {
+func NewPicker(result *sweep.Result, providerErr error) PickerModel {
 	items := make([]PickerItem, 0, len(result.Branches))
 
 	for _, br := range result.Branches {
@@ -56,7 +57,8 @@ func NewPicker(result *sweep.Result) PickerModel {
 	})
 
 	return PickerModel{
-		items: items,
+		items:       items,
+		providerErr: providerErr,
 	}
 }
 
@@ -189,10 +191,17 @@ func (m PickerModel) View() string {
 		b.WriteString(line + "\n")
 	}
 
-	// Help
+	// Provider warning if any
+	if m.providerErr != nil {
+		b.WriteString(fmt.Sprintf("\n  %s %s\n",
+			WarningStyle.Render("!"),
+			MutedStyle.Render(fmt.Sprintf("No PR info: %s", m.providerErr.Error()))))
+	}
+
+	// Help legend with symbols
 	b.WriteString(fmt.Sprintf("\n  %s\n", Divider(55)))
 	b.WriteString(fmt.Sprintf("  %s\n\n",
-		HelpStyle.Render("space select · a all · s suggested · n none · enter confirm · q quit")))
+		HelpStyle.Render("␣ toggle · a all · s suggested · ↵ confirm · q quit")))
 
 	return b.String()
 }
@@ -266,8 +275,8 @@ func (m PickerModel) SelectedBranches() []string {
 }
 
 // RunPicker runs the interactive picker and returns selected branch names
-func RunPicker(result *sweep.Result) ([]string, error) {
-	m := NewPicker(result)
+func RunPicker(result *sweep.Result, providerErr error) ([]string, error) {
+	m := NewPicker(result, providerErr)
 	p := tea.NewProgram(m)
 
 	finalModel, err := p.Run()

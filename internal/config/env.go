@@ -13,6 +13,13 @@ type Config struct {
 	Limit            int
 	StaleDays        int
 	NoColor          bool
+
+	// Provider tokens
+	GitHubToken          string
+	GitLabToken          string
+	GitLabURL            string
+	BitbucketUsername    string
+	BitbucketAppPassword string
 }
 
 // Default protected branch patterns
@@ -34,6 +41,13 @@ func Load() *Config {
 		Limit:            getEnvInt("GIT_SWEEP_LIMIT", 50),
 		StaleDays:        getEnvInt("GIT_SWEEP_STALE_DAYS", 30),
 		NoColor:          getEnvBool("GIT_SWEEP_NO_COLOR", false),
+
+		// Provider tokens (read directly, no defaults)
+		GitHubToken:          os.Getenv("GITHUB_TOKEN"),
+		GitLabToken:          os.Getenv("GITLAB_TOKEN"),
+		GitLabURL:            getEnv("GITLAB_URL", "https://gitlab.com"),
+		BitbucketUsername:    os.Getenv("BITBUCKET_USERNAME"),
+		BitbucketAppPassword: os.Getenv("BITBUCKET_APP_PASSWORD"),
 	}
 	return cfg
 }

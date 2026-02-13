@@ -5,7 +5,6 @@ import (
 
 	"github.com/midnattsol/git-sweep/internal/config"
 	"github.com/midnattsol/git-sweep/internal/git"
-	"github.com/midnattsol/git-sweep/internal/github"
 )
 
 // Category represents the category of a branch for nuke mode
@@ -76,7 +75,7 @@ func Analyze(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
 		default:
 			// Upstream is gone, check for merged PR
 			result.Stats.Candidates++
-			if !github.HasMergedPR(b.Name, mergedPRs) {
+			if !mergedPRs[b.Name] {
 				br.Skip = git.SkipNoPR
 			} else {
 				br.Eligible = true
@@ -111,7 +110,8 @@ func Execute(result *Result) {
 }
 
 // AnalyzeForNuke returns all branches categorized for nuke mode
-func AnalyzeForNuke(cfg *config.Config) (*Result, error) {
+// If mergedPRs is provided, branches with merged PRs are marked as Suggested
+func AnalyzeForNuke(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
 	branches, err := git.ListBranches(cfg.Remote)
 	if err != nil {
 		return nil, err
@@ -128,6 +128,7 @@ func AnalyzeForNuke(cfg *config.Config) (*Result, error) {
 		result.Stats.Total++
 
 		isStale := !b.LastCommit.IsZero() && b.LastCommit.Before(staleThreshold)
+		hasMergedPR := mergedPRs != nil && mergedPRs[b.Name]
 
 		switch {
 		case b.IsCurrent:
@@ -136,6 +137,20 @@ func AnalyzeForNuke(cfg *config.Config) (*Result, error) {
 		case cfg.IsProtected(b.Name):
 			br.Skip = git.SkipProtected
 			br.Category = CategoryProtected
+		case hasMergedPR:
+			// Branch has a merged PR - always suggest deletion
+			br.Eligible = true
+			br.Suggested = true
+			br.Category = CategorySuggested
+			result.Stats.Eligible++
+			result.Stats.Suggested++
+		case b.UpstreamGone || (b.Upstream != "" && !git.UpstreamExists(b.Upstream)):
+			// Upstream is gone (no merged PR found) - suggest deletion
+			br.Eligible = true
+			br.Suggested = true
+			br.Category = CategoryGone
+			result.Stats.Eligible++
+			result.Stats.Suggested++
 		case b.Upstream == "" && isStale:
 			// No upstream and stale - suggest deletion
 			br.Eligible = true
@@ -148,13 +163,6 @@ func AnalyzeForNuke(cfg *config.Config) (*Result, error) {
 			br.Eligible = true
 			br.Category = CategoryOrphan
 			result.Stats.Eligible++
-		case b.UpstreamGone || !git.UpstreamExists(b.Upstream):
-			// Upstream is gone - suggest deletion
-			br.Eligible = true
-			br.Suggested = true
-			br.Category = CategoryGone
-			result.Stats.Eligible++
-			result.Stats.Suggested++
 		default:
 			// Has active upstream
 			br.Eligible = true

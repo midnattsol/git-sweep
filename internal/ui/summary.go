@@ -18,6 +18,19 @@ func RenderHeader() string {
 	return fmt.Sprintf("\n  %s\n", title)
 }
 
+// RenderHeaderWithMode renders the header with mode integrated
+func RenderHeaderWithMode(dryRun bool) string {
+	title := TitleStyle.Render("git-sweep")
+	sep := MutedStyle.Render(" · ")
+	var mode string
+	if dryRun {
+		mode = DryRunStyle.Render("dry run")
+	} else {
+		mode = ExecuteStyle.Render("execute")
+	}
+	return fmt.Sprintf("\n  %s%s%s\n", title, sep, mode)
+}
+
 // RenderMode renders the current mode (dry run or execute)
 func RenderMode(dryRun bool) string {
 	var mode string
