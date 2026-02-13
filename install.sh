@@ -3,7 +3,7 @@
 # git-sweep installer
 #
 # Usage:
-#   curl -sSL https://raw.githubusercontent.com/midnattsol/git-sweep/main/install.sh | bash
+#   curl -sSL https://raw.githubusercontent.com/midnattsol/git-sweep/develop/install.sh | bash
 #
 # Environment variables:
 #   INSTALL_DIR - Installation directory (default: ~/.local/bin)
