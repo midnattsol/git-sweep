@@ -48,13 +48,19 @@ Deletes local branches that:
 2. Have a merged PR/MR (requires provider token, see [Authentication](#authentication))
 
 ```bash
-# Dry run (default) - shows all branches by default
+# Show what would be deleted, ask for confirmation, then delete
 git sweep
 
-# Actually delete
-git sweep --execute
+# Only show, don't prompt or delete
+git sweep --dry-run
 
-# Brief output (hide skipped branches)
+# Delete without confirmation
+git sweep --force
+
+# Also delete candidates (upstream gone but no merged PR found)
+git sweep --candidates
+
+# Hide skipped branches in output
 git sweep --brief
 ```
 

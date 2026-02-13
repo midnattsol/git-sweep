@@ -1,9 +1,11 @@
 package cmd
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -18,12 +20,14 @@ import (
 var (
 	version = "dev"
 
-	flagExecute bool
-	flagNuke    bool
-	flagYes     bool
-	flagBrief   bool
-	flagRemote  string
-	flagNoColor bool
+	flagDryRun     bool
+	flagForce      bool
+	flagCandidates bool
+	flagNuke       bool
+	flagYes        bool
+	flagBrief      bool
+	flagRemote     string
+	flagNoColor    bool
 )
 
 func NewRootCmd() *cobra.Command {
@@ -32,7 +36,7 @@ func NewRootCmd() *cobra.Command {
 		Short: "Safe local branch cleanup for squash-merge workflows",
 		Long: `git-sweep safely deletes local branches that:
   1. Have an upstream that no longer exists (after git fetch --prune)
-  2. Have a merged PR on GitHub
+  2. Have a merged PR/MR on the remote provider
 
 Use --nuke for interactive mode to delete any branch.`,
 		Version:      version,
@@ -40,10 +44,12 @@ Use --nuke for interactive mode to delete any branch.`,
 		SilenceUsage: true,
 	}
 
-	cmd.Flags().BoolVar(&flagExecute, "execute", false, "Actually delete branches (default: dry-run)")
+	cmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "Only show what would be deleted, don't prompt or delete")
+	cmd.Flags().BoolVar(&flagForce, "force", false, "Delete without confirmation")
+	cmd.Flags().BoolVar(&flagCandidates, "candidates", false, "Also delete candidates (upstream gone, no merged PR)")
 	cmd.Flags().BoolVar(&flagNuke, "nuke", false, "Interactive mode: select any branches to delete")
-	cmd.Flags().BoolVar(&flagYes, "yes", false, "Skip confirmation in nuke mode (delete all non-protected)")
-	cmd.Flags().BoolVarP(&flagBrief, "brief", "b", false, "Hide skipped branches (default: show all)")
+	cmd.Flags().BoolVar(&flagYes, "yes", false, "Skip confirmation in nuke mode (delete all suggested)")
+	cmd.Flags().BoolVarP(&flagBrief, "brief", "b", false, "Hide skipped branches")
 	cmd.Flags().StringVar(&flagRemote, "remote", "", "Remote name (default: origin, env: GIT_SWEEP_REMOTE)")
 	cmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Disable colors (env: GIT_SWEEP_NO_COLOR)")
 
@@ -88,7 +94,7 @@ func run(cmd *cobra.Command, args []string) error {
 }
 
 func runSafe(cfg *config.Config) error {
-	fmt.Print(ui.RenderHeaderWithMode(!flagExecute))
+	fmt.Print(ui.RenderHeader())
 
 	// Detect provider
 	var prov provider.Provider
@@ -135,21 +141,46 @@ func runSafe(cfg *config.Config) error {
 		return err
 	}
 
-	// Execute if requested
-	if flagExecute {
-		sweep.Execute(result)
+	// Show results
+	fmt.Print(ui.RenderBranchList(result, flagCandidates, !flagBrief))
+	fmt.Print(ui.RenderSummary(result.Stats))
+
+	// Count branches to delete
+	toDeleteCount := sweep.CountToDelete(result, flagCandidates)
+
+	// If nothing to delete, we're done
+	if toDeleteCount == 0 {
+		fmt.Print(ui.RenderNoBranches())
+		CheckUpdateInBackground()
+		return nil
 	}
 
-	// Show results (verbose by default, brief hides skipped)
-	fmt.Print(ui.RenderBranchList(result, !flagExecute, !flagBrief))
-	fmt.Print(ui.RenderSummary(result.Stats, !flagExecute))
-
-	// Show tip if dry run and there are eligible branches
-	if !flagExecute && result.Stats.Eligible > 0 {
-		fmt.Print(ui.RenderTip())
-	} else {
-		fmt.Println()
+	// Dry run mode: just show, don't prompt or delete
+	if flagDryRun {
+		fmt.Print(ui.RenderDryRunTip())
+		CheckUpdateInBackground()
+		return nil
 	}
+
+	// Ask for confirmation unless --force
+	if !flagForce {
+		fmt.Printf("\n  Delete %d branches? [y/N] ", toDeleteCount)
+		reader := bufio.NewReader(os.Stdin)
+		response, _ := reader.ReadString('\n')
+		response = strings.TrimSpace(strings.ToLower(response))
+
+		if response != "y" && response != "yes" {
+			fmt.Printf("\n  %s Cancelled\n\n", ui.MutedStyle.Render("●"))
+			return nil
+		}
+	}
+
+	// Execute deletion
+	sweep.Execute(result, flagCandidates)
+
+	// Show deletion results
+	fmt.Print(ui.RenderDeletedBranches(result))
+	fmt.Print(ui.RenderDeleteSummary(result.Stats.Deleted, toDeleteCount))
 
 	// Check for updates in background if auto-update enabled
 	CheckUpdateInBackground()

@@ -23,7 +23,8 @@ type BranchResult struct {
 	Branch    git.Branch
 	Skip      git.SkipReason
 	Category  Category
-	Eligible  bool
+	Eligible  bool // Has merged PR - safe to delete
+	Candidate bool // Upstream gone but no merged PR found
 	Suggested bool
 	Deleted   bool
 	DeleteErr error
@@ -64,27 +65,30 @@ func Analyze(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
 		switch {
 		case b.IsCurrent:
 			br.Skip = git.SkipCurrent
+			result.Stats.Skipped++
 		case cfg.IsProtected(b.Name):
 			br.Skip = git.SkipProtected
+			result.Stats.Skipped++
 		case b.Upstream == "":
 			br.Skip = git.SkipNoUpstream
+			result.Stats.Skipped++
 		case !git.IsOnRemote(b.Upstream, cfg.Remote):
 			br.Skip = git.SkipWrongRemote
+			result.Stats.Skipped++
 		case !b.UpstreamGone && git.UpstreamExists(b.Upstream):
 			br.Skip = git.SkipUpstreamExists
+			result.Stats.Skipped++
 		default:
-			// Upstream is gone, check for merged PR
+			// Upstream is gone - this is a candidate
 			result.Stats.Candidates++
-			if !mergedPRs[b.Name] {
-				br.Skip = git.SkipNoPR
-			} else {
+			if mergedPRs[b.Name] {
+				// Has merged PR - eligible for deletion
 				br.Eligible = true
 				result.Stats.Eligible++
+			} else {
+				// No merged PR - candidate only (deletable with --candidates)
+				br.Candidate = true
 			}
-		}
-
-		if br.Skip != git.SkipNone {
-			result.Stats.Skipped++
 		}
 
 		result.Branches = append(result.Branches, br)
@@ -94,9 +98,10 @@ func Analyze(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
 }
 
 // Execute deletes all eligible branches
-func Execute(result *Result) {
+func Execute(result *Result, includeCandidates bool) {
 	for i, br := range result.Branches {
-		if !br.Eligible {
+		shouldDelete := br.Eligible || (includeCandidates && br.Candidate)
+		if !shouldDelete {
 			continue
 		}
 
@@ -107,6 +112,14 @@ func Execute(result *Result) {
 			result.Stats.Deleted++
 		}
 	}
+}
+
+// CountToDelete returns the number of branches that would be deleted
+func CountToDelete(result *Result, includeCandidates bool) int {
+	if includeCandidates {
+		return result.Stats.Candidates
+	}
+	return result.Stats.Eligible
 }
 
 // AnalyzeForNuke returns all branches categorized for nuke mode
