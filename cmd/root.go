@@ -58,6 +58,8 @@ Use --nuke for interactive mode to delete any branch.`,
 	cmd.AddCommand(NewStashCmd())
 	cmd.AddCommand(NewTagsCmd())
 	cmd.AddCommand(NewWorktreeCmd())
+	cmd.AddCommand(NewProtectCmd())
+	cmd.AddCommand(NewUnprotectCmd())
 
 	return cmd
 }
@@ -113,11 +115,10 @@ func runSafe(cfg *config.Config) error {
 			return err
 		}
 		provCfg := &provider.Config{
-			GitHubToken:          cfg.GitHubToken,
-			GitLabToken:          cfg.GitLabToken,
-			GitLabURL:            cfg.GitLabURL,
-			BitbucketUsername:    cfg.BitbucketUsername,
-			BitbucketAppPassword: cfg.BitbucketAppPassword,
+			GitHubToken:    cfg.GitHubToken,
+			GitLabToken:    cfg.GitLabToken,
+			GitLabURL:      cfg.GitLabURL,
+			BitbucketToken: cfg.BitbucketToken,
 		}
 		prov, err = provider.New(info, provCfg)
 		return err
@@ -210,11 +211,10 @@ func runNuke(cfg *config.Config) error {
 			return nil // Don't fail, nuke can work without provider
 		}
 		provCfg := &provider.Config{
-			GitHubToken:          cfg.GitHubToken,
-			GitLabToken:          cfg.GitLabToken,
-			GitLabURL:            cfg.GitLabURL,
-			BitbucketUsername:    cfg.BitbucketUsername,
-			BitbucketAppPassword: cfg.BitbucketAppPassword,
+			GitHubToken:    cfg.GitHubToken,
+			GitLabToken:    cfg.GitLabToken,
+			GitLabURL:      cfg.GitLabURL,
+			BitbucketToken: cfg.BitbucketToken,
 		}
 		prov, err = provider.New(info, provCfg)
 		if err != nil {

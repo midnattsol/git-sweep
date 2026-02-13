@@ -26,8 +26,7 @@ type Config struct {
 	GitLabURL   string // Default: https://gitlab.com
 
 	// Bitbucket
-	BitbucketUsername    string
-	BitbucketAppPassword string
+	BitbucketToken string
 }
 
 // RepoInfo contains repository information extracted from remote URL

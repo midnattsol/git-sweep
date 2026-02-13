@@ -101,6 +101,15 @@ git sweep update --check # Only check for updates
 git sweep update --yes   # Update without confirmation
 ```
 
+### `git sweep protect` / `unprotect` - Manage protected branches
+
+```bash
+git sweep protect staging        # Add to protected list
+git sweep protect "release/**"   # Patterns supported
+git sweep unprotect staging      # Remove from protected list
+git sweep protect --list         # Show all protected patterns
+```
+
 ## Configuration
 
 Configure via environment variables. Works great with [direnv](https://direnv.net/).
@@ -108,23 +117,25 @@ Configure via environment variables. Works great with [direnv](https://direnv.ne
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GIT_SWEEP_REMOTE` | `origin` | Remote to use |
-| `GIT_SWEEP_PROTECTED` | `master,main,develop,...` | Protected branch patterns |
+| `GIT_SWEEP_PROTECTED` | `master,main,develop` | Protected branch patterns (overrides config) |
 | `GIT_SWEEP_LIMIT` | `50` | Max PRs to scan |
 | `GIT_SWEEP_STALE_DAYS` | `30` | Days threshold for stale detection |
 | `GIT_SWEEP_NO_COLOR` | `false` | Disable colors |
 
-### Protected branch patterns
+### Protected branches
+
+By default, `master`, `main`, and `develop` are protected. Add more with:
 
 ```bash
-# Exact match
-export GIT_SWEEP_PROTECTED="master,main,develop"
-
-# Wildcards
-export GIT_SWEEP_PROTECTED="master,main,release/**,hotfix/*"
+git sweep protect staging
+git sweep protect "release/**"
 ```
 
+Patterns support wildcards:
 - `release/*` matches `release/1.0` but not `release/v2/hotfix`
 - `release/**` matches `release/1.0` and `release/v2/hotfix`
+
+Config is stored in `~/.config/git-sweep/config.yaml`. Use `GIT_SWEEP_PROTECTED` env var to override completely.
 
 ## Authentication
 
@@ -152,18 +163,16 @@ Create token: GitLab > User Settings > Access Tokens with `read_api` scope.
 ### Bitbucket Cloud
 
 ```bash
-export BITBUCKET_USERNAME="myuser"
-export BITBUCKET_APP_PASSWORD="xxxxxxxxxxxx"
+export BITBUCKET_TOKEN="xxxxxxxxxxxx"
 ```
 
-Create app password: Bitbucket > Personal Settings > App passwords with `Repositories: Read` and `Pull requests: Read`.
+Create token: Bitbucket > Repository Settings > Access tokens with `Read` scope.
 
 ## Example `.envrc`
 
 ```bash
 # GitHub project
 export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
-export GIT_SWEEP_PROTECTED="master,main,release/**"
 export GIT_SWEEP_STALE_DAYS="60"
 ```
 
@@ -171,7 +180,6 @@ export GIT_SWEEP_STALE_DAYS="60"
 # Self-hosted GitLab
 export GITLAB_TOKEN="glpat-xxxxxxxxxxxx"
 export GITLAB_URL="https://gitlab.mycompany.com"
-export GIT_SWEEP_PROTECTED="master,develop"
 ```
 
 ## Contributing

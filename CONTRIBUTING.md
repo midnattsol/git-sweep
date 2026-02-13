@@ -41,9 +41,11 @@ git-sweep/
 │   ├── stash.go           # Stash cleanup
 │   ├── tags.go            # Tags cleanup
 │   ├── worktree.go        # Worktree cleanup
+│   ├── protect.go         # Protect branch patterns
+│   ├── unprotect.go       # Unprotect branch patterns
 │   └── update.go          # Self-update
 ├── internal/
-│   ├── config/            # Environment configuration
+│   ├── config/            # Configuration (env + file)
 │   ├── git/               # Git operations
 │   ├── provider/          # GitHub, GitLab, Bitbucket providers
 │   ├── sweep/             # Branch analysis logic
