@@ -15,10 +15,11 @@ type Config struct {
 	NoColor          bool
 
 	// Provider tokens
-	GitHubToken    string
-	GitLabToken    string
-	GitLabURL      string
-	BitbucketToken string
+	GitHubToken       string
+	GitLabToken       string
+	GitLabURL         string
+	BitbucketUsername string
+	BitbucketToken    string
 }
 
 // Default protected branch patterns
@@ -41,10 +42,11 @@ func Load() *Config {
 		NoColor:          getEnvBool("GIT_SWEEP_NO_COLOR", false),
 
 		// Provider tokens (read directly, no defaults)
-		GitHubToken:    os.Getenv("GITHUB_TOKEN"),
-		GitLabToken:    os.Getenv("GITLAB_TOKEN"),
-		GitLabURL:      getEnv("GITLAB_URL", "https://gitlab.com"),
-		BitbucketToken: os.Getenv("BITBUCKET_TOKEN"),
+		GitHubToken:       os.Getenv("GITHUB_TOKEN"),
+		GitLabToken:       os.Getenv("GITLAB_TOKEN"),
+		GitLabURL:         getEnv("GITLAB_URL", "https://gitlab.com"),
+		BitbucketUsername: os.Getenv("BITBUCKET_USERNAME"),
+		BitbucketToken:    os.Getenv("BITBUCKET_TOKEN"),
 	}
 	return cfg
 }

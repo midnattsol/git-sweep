@@ -163,10 +163,11 @@ Create token: GitLab > User Settings > Access Tokens with `read_api` scope.
 ### Bitbucket Cloud
 
 ```bash
+export BITBUCKET_USERNAME="your-username"
 export BITBUCKET_TOKEN="xxxxxxxxxxxx"
 ```
 
-Create token: Bitbucket > Repository Settings > Access tokens with `Read` scope.
+Create token: Bitbucket > Personal Settings > API tokens with `Repositories: Read` and `Pull requests: Read` scopes.
 
 ## Example `.envrc`
 

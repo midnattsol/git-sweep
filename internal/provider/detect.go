@@ -120,7 +120,7 @@ func New(info *RepoInfo, cfg *Config) (Provider, error) {
 		}
 		return NewGitLab(info, cfg.GitLabToken, baseURL)
 	case "bitbucket":
-		return NewBitbucket(info, cfg.BitbucketToken)
+		return NewBitbucket(info, cfg.BitbucketUsername, cfg.BitbucketToken)
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", info.Provider)
 	}

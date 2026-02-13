@@ -115,10 +115,11 @@ func runSafe(cfg *config.Config) error {
 			return err
 		}
 		provCfg := &provider.Config{
-			GitHubToken:    cfg.GitHubToken,
-			GitLabToken:    cfg.GitLabToken,
-			GitLabURL:      cfg.GitLabURL,
-			BitbucketToken: cfg.BitbucketToken,
+			GitHubToken:       cfg.GitHubToken,
+			GitLabToken:       cfg.GitLabToken,
+			GitLabURL:         cfg.GitLabURL,
+			BitbucketUsername: cfg.BitbucketUsername,
+			BitbucketToken:    cfg.BitbucketToken,
 		}
 		prov, err = provider.New(info, provCfg)
 		return err
@@ -211,10 +212,11 @@ func runNuke(cfg *config.Config) error {
 			return nil // Don't fail, nuke can work without provider
 		}
 		provCfg := &provider.Config{
-			GitHubToken:    cfg.GitHubToken,
-			GitLabToken:    cfg.GitLabToken,
-			GitLabURL:      cfg.GitLabURL,
-			BitbucketToken: cfg.BitbucketToken,
+			GitHubToken:       cfg.GitHubToken,
+			GitLabToken:       cfg.GitLabToken,
+			GitLabURL:         cfg.GitLabURL,
+			BitbucketUsername: cfg.BitbucketUsername,
+			BitbucketToken:    cfg.BitbucketToken,
 		}
 		prov, err = provider.New(info, provCfg)
 		if err != nil {

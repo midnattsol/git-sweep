@@ -13,23 +13,28 @@ type Bitbucket struct {
 	client    *http.Client
 	workspace string
 	repoSlug  string
+	username  string
 	token     string
 }
 
 // NewBitbucket creates a new Bitbucket provider
-func NewBitbucket(info *RepoInfo, token string) (*Bitbucket, error) {
+func NewBitbucket(info *RepoInfo, username, token string) (*Bitbucket, error) {
+	if username == "" {
+		username = os.Getenv("BITBUCKET_USERNAME")
+	}
 	if token == "" {
 		token = os.Getenv("BITBUCKET_TOKEN")
 	}
 
-	if token == "" {
-		return nil, fmt.Errorf("BITBUCKET_TOKEN not set. Create one at Bitbucket > Repository Settings > Access tokens")
+	if username == "" || token == "" {
+		return nil, fmt.Errorf("BITBUCKET_USERNAME and BITBUCKET_TOKEN not set. Create an API token at Bitbucket > Personal Settings > API tokens")
 	}
 
 	return &Bitbucket{
 		client:    &http.Client{},
 		workspace: info.Owner,
 		repoSlug:  info.Repo,
+		username:  username,
 		token:     token,
 	}, nil
 }
@@ -70,7 +75,7 @@ func (b *Bitbucket) MergedPRBranches(ctx context.Context, limit int) (map[string
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+b.token)
+		req.SetBasicAuth(b.username, b.token)
 
 		resp, err := b.client.Do(req)
 		if err != nil {
