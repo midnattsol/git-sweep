@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/midnattsol/git-sweep/compare/v2.2.0...v2.2.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* restore Bitbucket username + token authentication ([da17ad0](https://github.com/midnattsol/git-sweep/commit/da17ad0b992f870394be7222b579fa840d732d54))
+
 ## [2.2.0](https://github.com/midnattsol/git-sweep/compare/v2.1.1...v2.2.0) (2026-02-13)
 
 
