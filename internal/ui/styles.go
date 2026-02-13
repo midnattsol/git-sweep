@@ -4,18 +4,18 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Charm-style color palette
+// Soft color palette - easier on the eyes
 var (
-	// Primary colors
-	Purple    = lipgloss.Color("#7C3AED")
-	Pink      = lipgloss.Color("#EC4899")
-	Cyan      = lipgloss.Color("#06B6D4")
-	Green     = lipgloss.Color("#10B981")
-	Yellow    = lipgloss.Color("#F59E0B")
-	Red       = lipgloss.Color("#EF4444")
-	Gray      = lipgloss.Color("#6B7280")
-	DarkGray  = lipgloss.Color("#374151")
-	LightGray = lipgloss.Color("#9CA3AF")
+	// Primary colors (softer tones)
+	Purple    = lipgloss.Color("#C084FC") // lavanda/magenta suave
+	Pink      = lipgloss.Color("#F0ABFC") // pink suave
+	Cyan      = lipgloss.Color("#22D3EE") // cyan claro
+	Green     = lipgloss.Color("#34D399") // verde menta
+	Yellow    = lipgloss.Color("#FBBF24") // amarillo suave
+	Red       = lipgloss.Color("#F87171") // rojo suave
+	Gray      = lipgloss.Color("#9CA3AF")
+	DarkGray  = lipgloss.Color("#4B5563")
+	LightGray = lipgloss.Color("#D1D5DB")
 )
 
 // Styles

@@ -11,6 +11,7 @@ type Config struct {
 	Remote           string
 	ProtectedPattern []string
 	Limit            int
+	StaleDays        int
 	NoColor          bool
 }
 
@@ -31,6 +32,7 @@ func Load() *Config {
 		Remote:           getEnv("GIT_SWEEP_REMOTE", "origin"),
 		ProtectedPattern: getEnvList("GIT_SWEEP_PROTECTED", defaultProtected),
 		Limit:            getEnvInt("GIT_SWEEP_LIMIT", 50),
+		StaleDays:        getEnvInt("GIT_SWEEP_STALE_DAYS", 30),
 		NoColor:          getEnvBool("GIT_SWEEP_NO_COLOR", false),
 	}
 	return cfg

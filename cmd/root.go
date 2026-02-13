@@ -12,6 +12,7 @@ import (
 	"github.com/midnattsol/git-sweep/internal/github"
 	"github.com/midnattsol/git-sweep/internal/sweep"
 	"github.com/midnattsol/git-sweep/internal/ui"
+	"github.com/midnattsol/git-sweep/internal/update"
 )
 
 var (
@@ -46,10 +47,16 @@ Use --nuke for interactive mode to delete any branch.`,
 	cmd.Flags().StringVar(&flagRemote, "remote", "", "Remote name (default: origin, env: GIT_SWEEP_REMOTE)")
 	cmd.Flags().BoolVar(&flagNoColor, "no-color", false, "Disable colors (env: GIT_SWEEP_NO_COLOR)")
 
+	// Add subcommands
+	cmd.AddCommand(NewUpdateCmd())
+
 	return cmd
 }
 
 func Execute() {
+	// Set version for update package
+	update.CurrentVersion = version
+
 	if err := NewRootCmd().Execute(); err != nil {
 		os.Exit(1)
 	}
@@ -137,6 +144,9 @@ func runSafe(cfg *config.Config) error {
 		fmt.Println()
 	}
 
+	// Check for updates in background if auto-update enabled
+	CheckUpdateInBackground()
+
 	return nil
 }
 
@@ -208,6 +218,9 @@ func runNuke(cfg *config.Config) error {
 	}
 
 	fmt.Print(ui.RenderNukeSummary(deleted, len(toDelete)))
+
+	// Check for updates in background if auto-update enabled
+	CheckUpdateInBackground()
 
 	return nil
 }

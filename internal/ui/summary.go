@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/midnattsol/git-sweep/internal/git"
@@ -56,10 +57,19 @@ func RenderBranchList(result *sweep.Result, dryRun, verbose bool) string {
 			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Skipped")))
 			for _, br := range skipped {
 				reason := formatSkipReason(br.Skip)
-				b.WriteString(fmt.Sprintf("  %s %s  %s\n",
-					CircleStyle.Render(),
-					br.Branch.Name,
-					MutedStyle.Render(reason)))
+				age := formatBranchAge(br.Branch.LastCommit)
+				if age != "" {
+					b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
+						CircleStyle.Render(),
+						br.Branch.Name,
+						MutedStyle.Render(reason),
+						MutedStyle.Render(age)))
+				} else {
+					b.WriteString(fmt.Sprintf("  %s %s  %s\n",
+						CircleStyle.Render(),
+						br.Branch.Name,
+						MutedStyle.Render(reason)))
+				}
 			}
 		}
 	}
@@ -154,6 +164,41 @@ func filterSkipped(branches []sweep.BranchResult) []sweep.BranchResult {
 
 func formatSkipReason(reason git.SkipReason) string {
 	return string(reason)
+}
+
+func formatBranchAge(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+
+	d := time.Since(t)
+
+	switch {
+	case d < time.Hour*24:
+		return "today"
+	case d < time.Hour*24*2:
+		return "yesterday"
+	case d < time.Hour*24*7:
+		return fmt.Sprintf("%d days ago", int(d.Hours()/24))
+	case d < time.Hour*24*30:
+		weeks := int(d.Hours() / 24 / 7)
+		if weeks == 1 {
+			return "1 week ago"
+		}
+		return fmt.Sprintf("%d weeks ago", weeks)
+	case d < time.Hour*24*365:
+		months := int(d.Hours() / 24 / 30)
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	default:
+		years := int(d.Hours() / 24 / 365)
+		if years == 1 {
+			return "1 year ago"
+		}
+		return fmt.Sprintf("%d years ago", years)
+	}
 }
 
 func indent(s string, n int) string {

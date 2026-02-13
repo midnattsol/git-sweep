@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Branch represents a local git branch
@@ -13,6 +15,7 @@ type Branch struct {
 	Upstream     string
 	IsCurrent    bool
 	UpstreamGone bool
+	LastCommit   time.Time
 }
 
 // SkipReason explains why a branch was skipped
@@ -52,9 +55,9 @@ func CurrentBranch() (string, error) {
 
 // ListBranches returns all local branches with their upstream info
 func ListBranches(remote string) ([]Branch, error) {
-	// Format: refname:short, upstream:short, upstream:track
+	// Format: refname:short, upstream:short, upstream:track, committerdate:unix
 	cmd := exec.Command("git", "for-each-ref",
-		"--format=%(refname:short)\t%(upstream:short)\t%(upstream:track)",
+		"--format=%(refname:short)\t%(upstream:short)\t%(upstream:track)\t%(committerdate:unix)",
 		"refs/heads")
 
 	out, err := cmd.Output()
@@ -75,11 +78,18 @@ func ListBranches(remote string) ([]Branch, error) {
 		name := parts[0]
 		upstream := ""
 		track := ""
+		var lastCommit time.Time
+
 		if len(parts) > 1 {
 			upstream = parts[1]
 		}
 		if len(parts) > 2 {
 			track = parts[2]
+		}
+		if len(parts) > 3 {
+			if ts, err := strconv.ParseInt(parts[3], 10, 64); err == nil {
+				lastCommit = time.Unix(ts, 0)
+			}
 		}
 
 		b := Branch{
@@ -87,6 +97,7 @@ func ListBranches(remote string) ([]Branch, error) {
 			Upstream:     upstream,
 			IsCurrent:    name == current,
 			UpstreamGone: strings.Contains(track, "gone"),
+			LastCommit:   lastCommit,
 		}
 
 		branches = append(branches, b)
