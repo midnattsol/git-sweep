@@ -41,19 +41,19 @@ git config --global alias.sweep '!git-sweep'
 
 ### `git sweep` - Branch cleanup
 
-Safe, conservative branch cleanup with PR verification.
+Safe branch cleanup for squash-merge workflows.
 
 ```bash
-git sweep              # Show eligible, confirm, delete
-git sweep --dry-run    # Only show, don't delete
-git sweep --force      # Delete without confirmation
-git sweep --candidates # Include candidates (gone upstream, no merged PR)
-git sweep --brief      # Hide skipped branches
+git sweep               # Delete branches with gone upstream
+git sweep --dry-run     # Only show, don't delete
+git sweep --force       # Delete without confirmation
+git sweep --only-merged # Only delete if PR was merged (stricter)
+git sweep --brief       # Hide skipped branches
 ```
 
 **What gets deleted:**
-- Branches where upstream no longer exists (`git fetch --prune`)
-- AND have a merged PR/MR on the remote
+- Branches where upstream no longer exists (after `git fetch --prune`)
+- Use `--only-merged` to also require a confirmed merged PR
 
 Branches that were never pushed are ignored - your local experiments stay safe.
 
@@ -77,12 +77,14 @@ Stale detection helps clean up old local branches you may have forgotten about. 
 
 | Category | Description | Normal mode | Nuke mode |
 |----------|-------------|-------------|-----------|
-| **Merged** | Has merged PR | ✅ Deletes | ✅ Suggested |
-| **Gone** | Upstream deleted, no PR found | With `--candidates` | ✅ Suggested |
+| **Gone** | Upstream deleted | ✅ Deletes | ✅ Suggested |
+| **Gone + Merged** | Upstream deleted + merged PR | ✅ Deletes | ✅ Suggested |
 | **Stale** | No upstream, old commits (>30d) | Ignored | ✅ Suggested |
 | **Orphan** | No upstream, recent commits | Ignored | Selectable |
 | **Active** | Has active upstream | Ignored | Selectable |
 | **Protected** | Current or protected branch | Skipped | Skipped |
+
+With `--only-merged`, normal mode only deletes branches that have both gone upstream AND a confirmed merged PR.
 
 ### `git sweep stash` - Stash cleanup
 

@@ -22,7 +22,7 @@ var (
 
 	flagDryRun     bool
 	flagForce      bool
-	flagCandidates bool
+	flagOnlyMerged bool
 	flagNuke       bool
 	flagYes        bool
 	flagBrief      bool
@@ -34,10 +34,10 @@ func NewRootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git-sweep",
 		Short: "Safe local branch cleanup for squash-merge workflows",
-		Long: `git-sweep safely deletes local branches that:
-  1. Have an upstream that no longer exists (after git fetch --prune)
-  2. Have a merged PR/MR on the remote provider
+		Long: `git-sweep safely deletes local branches with gone upstream.
 
+By default, deletes all branches where the upstream no longer exists.
+Use --only-merged to require a confirmed merged PR before deletion.
 Use --nuke for interactive mode to delete any branch.`,
 		Version:      version,
 		RunE:         run,
@@ -46,7 +46,7 @@ Use --nuke for interactive mode to delete any branch.`,
 
 	cmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "Only show what would be deleted, don't prompt or delete")
 	cmd.Flags().BoolVar(&flagForce, "force", false, "Delete without confirmation")
-	cmd.Flags().BoolVar(&flagCandidates, "candidates", false, "Also delete candidates (upstream gone, no merged PR)")
+	cmd.Flags().BoolVar(&flagOnlyMerged, "only-merged", false, "Only delete branches with confirmed merged PR")
 	cmd.Flags().BoolVar(&flagNuke, "nuke", false, "Interactive mode: select any branches to delete")
 	cmd.Flags().BoolVar(&flagYes, "yes", false, "Skip confirmation in nuke mode (delete all suggested)")
 	cmd.Flags().BoolVarP(&flagBrief, "brief", "b", false, "Hide skipped branches")
@@ -147,11 +147,11 @@ func runSafe(cfg *config.Config) error {
 	}
 
 	// Show results
-	fmt.Print(ui.RenderBranchList(result, flagCandidates, !flagBrief))
+	fmt.Print(ui.RenderBranchList(result, !flagOnlyMerged, !flagBrief))
 	fmt.Print(ui.RenderSummary(result.Stats))
 
 	// Count branches to delete
-	toDeleteCount := sweep.CountToDelete(result, flagCandidates)
+	toDeleteCount := sweep.CountToDelete(result, !flagOnlyMerged)
 
 	// If nothing to delete, we're done
 	if toDeleteCount == 0 {
@@ -181,7 +181,7 @@ func runSafe(cfg *config.Config) error {
 	}
 
 	// Execute deletion
-	sweep.Execute(result, flagCandidates)
+	sweep.Execute(result, !flagOnlyMerged)
 
 	// Show deletion results
 	fmt.Print(ui.RenderDeletedBranches(result))
