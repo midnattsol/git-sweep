@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/midnattsol/git-sweep/compare/v1.1.1...v1.2.0) (2026-02-13)
+
+
+### Features
+
+* add smart nuke mode with categories, self-update, and UI improvements ([828672e](https://github.com/midnattsol/git-sweep/commit/828672e7a78e8ea49c7b329d357c4b75cefac795))
+
+
+### Bug Fixes
+
+* correct branch name in install.sh usage comment ([574830a](https://github.com/midnattsol/git-sweep/commit/574830a457f15c42deb74c6c771b59d888e15918))
+
 ## [1.1.1](https://github.com/midnattsol/git-sweep/compare/v1.1.0...v1.1.1) (2026-02-13)
 
 
