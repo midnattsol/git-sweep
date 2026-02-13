@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/midnattsol/git-sweep/compare/v1.3.0...v2.0.0) (2026-02-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* Remove --execute flag
+
+### Features
+
+* new CLI UX with confirmation prompt and --candidates flag ([8e7468e](https://github.com/midnattsol/git-sweep/commit/8e7468eca0a92c367f8392e0f077fcf96eb766a6))
+
+
+### Bug Fixes
+
+* revert to default release-please behavior ([bef7692](https://github.com/midnattsol/git-sweep/commit/bef7692fbcba1cc0f51f031b9b3f3ae69f7a5410))
+* trigger goreleaser on release created instead of tag push ([d4ef34a](https://github.com/midnattsol/git-sweep/commit/d4ef34a0fc4cf50b1ab1f86f6aa553557ee7d66d))
+
 ## [1.3.0](https://github.com/midnattsol/git-sweep/compare/v1.2.0...v1.3.0) (2026-02-13)
 
 
