@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/midnattsol/git-sweep/compare/v2.1.1...v2.2.0) (2026-02-13)
+
+
+### Features
+
+* add protect/unprotect commands and simplify Bitbucket auth ([1fd2d11](https://github.com/midnattsol/git-sweep/commit/1fd2d11de0a88ac62cccd38fd25a1435cb4ef8ce))
+
 ## [2.1.1](https://github.com/midnattsol/git-sweep/compare/v2.1.0...v2.1.1) (2026-02-13)
 
 
