@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/midnattsol/git-sweep/compare/v2.0.0...v2.0.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* combine release-please and goreleaser in single workflow ([32f98ec](https://github.com/midnattsol/git-sweep/commit/32f98ec5a5fc5a5723fb7d995ccb84136b319d98))
+
 ## [2.0.0](https://github.com/midnattsol/git-sweep/compare/v1.3.0...v2.0.0) (2026-02-13)
 
 
