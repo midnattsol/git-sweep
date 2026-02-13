@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.3.0](https://github.com/midnattsol/git-sweep/compare/v2.2.1...v2.3.0) (2026-02-13)
+
+
+### Features
+
+* reduce code duplication and consolidate config ([390532f](https://github.com/midnattsol/git-sweep/commit/390532f735d6f6e9562b596c53a4f10d7229afc3))
+
 ## [2.2.1](https://github.com/midnattsol/git-sweep/compare/v2.2.0...v2.2.1) (2026-02-13)
 
 
