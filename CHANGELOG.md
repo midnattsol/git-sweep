@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.1](https://github.com/midnattsol/git-sweep/compare/v2.1.0...v2.1.1) (2026-02-13)
+
+
+### Bug Fixes
+
+* use MergedAt instead of GetMerged for PR detection ([545d878](https://github.com/midnattsol/git-sweep/commit/545d87839f2b4f6f3fc3a3fa9450d5b0b5aed11b))
+
 ## [2.1.0](https://github.com/midnattsol/git-sweep/compare/v2.0.1...v2.1.0) (2026-02-13)
 
 
