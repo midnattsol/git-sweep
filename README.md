@@ -41,9 +41,7 @@ git config --global alias.sweep '!git-sweep'
 
 ### `git sweep` - Branch cleanup
 
-Deletes local branches that have:
-1. An upstream that no longer exists (after `git fetch --prune`)
-2. A merged PR/MR on the remote
+Safe, conservative branch cleanup with PR verification.
 
 ```bash
 git sweep              # Show eligible, confirm, delete
@@ -53,14 +51,38 @@ git sweep --candidates # Include candidates (gone upstream, no merged PR)
 git sweep --brief      # Hide skipped branches
 ```
 
+**What gets deleted:**
+- Branches where upstream no longer exists (`git fetch --prune`)
+- AND have a merged PR/MR on the remote
+
+Branches that were never pushed are ignored - your local experiments stay safe.
+
 #### Nuke mode
 
-Interactive picker to delete any branch (except protected).
+Interactive picker to delete any branch (except protected). Use when you want full control.
 
 ```bash
 git sweep --nuke       # Interactive multi-select
 git sweep --nuke --yes # Delete all suggested without asking
 ```
+
+**What gets suggested for deletion:**
+- Branches with merged PRs
+- Branches with gone upstream
+- **Stale branches**: no upstream + last commit older than 30 days
+
+Stale detection helps clean up old local branches you may have forgotten about. Configure the threshold with `GIT_SWEEP_STALE_DAYS`.
+
+#### Branch categories
+
+| Category | Description | Normal mode | Nuke mode |
+|----------|-------------|-------------|-----------|
+| **Merged** | Has merged PR | ✅ Deletes | ✅ Suggested |
+| **Gone** | Upstream deleted, no PR found | With `--candidates` | ✅ Suggested |
+| **Stale** | No upstream, old commits (>30d) | Ignored | ✅ Suggested |
+| **Orphan** | No upstream, recent commits | Ignored | Selectable |
+| **Active** | Has active upstream | Ignored | Selectable |
+| **Protected** | Current or protected branch | Skipped | Skipped |
 
 ### `git sweep stash` - Stash cleanup
 
@@ -119,7 +141,7 @@ Configure via environment variables. Works great with [direnv](https://direnv.ne
 | `GIT_SWEEP_REMOTE` | `origin` | Remote to use |
 | `GIT_SWEEP_PROTECTED` | `master,main,develop` | Protected branch patterns (overrides config) |
 | `GIT_SWEEP_LIMIT` | `50` | Max PRs to scan |
-| `GIT_SWEEP_STALE_DAYS` | `30` | Days threshold for stale detection |
+| `GIT_SWEEP_STALE_DAYS` | `30` | Days until a local branch is considered "stale" in nuke mode |
 | `GIT_SWEEP_NO_COLOR` | `false` | Disable colors |
 
 ### Protected branches
