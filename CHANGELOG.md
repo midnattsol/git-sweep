@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.0](https://github.com/midnattsol/git-sweep/compare/v2.4.1...v3.0.0) (2026-02-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* ✗ GITHUB_TOKEN not set. Create one at https://github.com/settings/tokens now always uses interactive cleanup by default.
+
+### Features
+
+* make interactive branch cleanup the default ([4b2ff70](https://github.com/midnattsol/git-sweep/commit/4b2ff705f10a37d433293369babceea843795915))
+
 ## [2.4.1](https://github.com/midnattsol/git-sweep/compare/v2.4.0...v2.4.1) (2026-02-13)
 
 
