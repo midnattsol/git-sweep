@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.0](https://github.com/midnattsol/git-sweep/compare/v3.0.0...v3.1.0) (2026-02-17)
+
+
+### Features
+
+* allow deleting current branch with automatic checkout ([32d88fe](https://github.com/midnattsol/git-sweep/commit/32d88fe5691c9a504ba2bd2f6ed35541a0b68a22))
+
 ## [3.0.0](https://github.com/midnattsol/git-sweep/compare/v2.4.1...v3.0.0) (2026-02-17)
 
 
