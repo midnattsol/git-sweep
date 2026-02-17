@@ -2,176 +2,17 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/midnattsol/git-sweep/internal/git"
-	"github.com/midnattsol/git-sweep/internal/sweep"
-	"github.com/midnattsol/git-sweep/internal/timeutil"
 )
 
-const defaultWidth = 50
-
-// RenderHeader renders the app header
-func RenderHeader() string {
-	title := TitleStyle.Render("git-sweep")
-	return fmt.Sprintf("\n  %s\n", title)
-}
-
-// RenderHeaderWithMode renders the header with mode integrated
-func RenderHeaderWithMode(dryRun bool) string {
-	title := TitleStyle.Render("git-sweep")
-	sep := MutedStyle.Render(" · ")
-	var mode string
-	if dryRun {
-		mode = DryRunStyle.Render("dry run")
-	} else {
-		mode = ExecuteStyle.Render("execute")
-	}
-	return fmt.Sprintf("\n  %s%s%s\n", title, sep, mode)
-}
-
-// RenderMode renders the current mode (dry run or execute)
-func RenderMode(dryRun bool) string {
-	var mode string
-	if dryRun {
-		mode = DryRunStyle.Render("DRY RUN")
-	} else {
-		mode = ExecuteStyle.Render("EXECUTE")
-	}
-	return fmt.Sprintf("\n  %s\n", mode)
-}
-
-// RenderBranchList renders the list of branches with their status
-func RenderBranchList(result *sweep.Result, includeGone, showSkipped bool) string {
-	var b strings.Builder
-
-	// Branches to delete
-	toDelete := filterToDelete(result.Branches, includeGone)
-	if len(toDelete) > 0 {
-		b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("To delete")))
-		for _, br := range toDelete {
-			age := timeutil.FormatAge(br.Branch.LastCommit)
-			if age != "" {
-				b.WriteString(fmt.Sprintf("  %s %s  %s\n",
-					CheckStyle.Render(),
-					BranchStyle.Render(br.Branch.Name),
-					MutedStyle.Render(age)))
-			} else {
-				b.WriteString(fmt.Sprintf("  %s %s\n",
-					CheckStyle.Render(),
-					BranchStyle.Render(br.Branch.Name)))
-			}
-		}
-	}
-
-	// Show extra branches available without --only-merged
-	if !includeGone {
-		extra := filterCandidates(result.Branches)
-		if len(extra) > 0 {
-			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render(fmt.Sprintf("+%d more without --only-merged", len(extra)))))
-		}
-	}
-
-	// Skipped branches
-	if showSkipped {
-		skipped := filterSkipped(result.Branches)
-		if len(skipped) > 0 {
-			b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Skipped")))
-			for _, br := range skipped {
-				reason := formatSkipReason(br.Skip)
-				age := timeutil.FormatAge(br.Branch.LastCommit)
-				if age != "" {
-					b.WriteString(fmt.Sprintf("  %s %s  %s  %s\n",
-						CircleStyle.Render(),
-						br.Branch.Name,
-						MutedStyle.Render(reason),
-						MutedStyle.Render(age)))
-				} else {
-					b.WriteString(fmt.Sprintf("  %s %s  %s\n",
-						CircleStyle.Render(),
-						br.Branch.Name,
-						MutedStyle.Render(reason)))
-				}
-			}
-		}
-	}
-
-	return b.String()
-}
-
-// RenderSummary renders the summary stats
-func RenderSummary(stats sweep.Stats, includeGone bool) string {
-	var toDelete int
-	if includeGone {
-		toDelete = stats.Candidates
-	} else {
-		toDelete = stats.Eligible
-	}
-
-	var parts []string
-	parts = append(parts, fmt.Sprintf("To delete %s", BoldStyle.Render(fmt.Sprintf("%d", toDelete))))
-	parts = append(parts, fmt.Sprintf("Skipped %s", BoldStyle.Render(fmt.Sprintf("%d", stats.Skipped))))
-
-	content := strings.Join(parts, MutedStyle.Render(" · "))
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DarkGray).
-		Padding(0, 1).
-		Render(content)
-
-	return fmt.Sprintf("\n%s\n", Indent(box, 2))
-}
-
-// RenderDryRunTip renders the tip for dry run mode
-func RenderDryRunTip() string {
-	return fmt.Sprintf("\n  %s Remove %s to delete.\n\n",
-		MutedStyle.Render("Tip:"),
-		BoldStyle.Render("--dry-run"))
-}
-
-// RenderDeletedBranches renders the list of deleted branches
-func RenderDeletedBranches(result *sweep.Result) string {
-	var b strings.Builder
-	b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Deleted")))
-
-	for _, br := range result.Branches {
-		if br.Deleted {
-			b.WriteString(fmt.Sprintf("  %s %s\n", CheckStyle.Render(), BranchStyle.Render(br.Branch.Name)))
-		} else if br.DeleteErr != nil {
-			b.WriteString(fmt.Sprintf("  %s %s  %s\n",
-				CrossStyle.Render(),
-				br.Branch.Name,
-				ErrorStyle.Render(br.DeleteErr.Error())))
-		}
-	}
-
-	return b.String()
-}
-
-// RenderDeleteSummary renders summary after deletion
-func RenderDeleteSummary(deleted int, total int) string {
-	content := fmt.Sprintf("Deleted %s of %s branches",
-		SuccessStyle.Render(fmt.Sprintf("%d", deleted)),
-		BoldStyle.Render(fmt.Sprintf("%d", total)))
-
-	box := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(DarkGray).
-		Padding(0, 1).
-		Render(content)
-
-	return fmt.Sprintf("\n%s\n\n", Indent(box, 2))
-}
-
-// RenderNukeHeader renders the header for nuke mode
+// RenderNukeHeader renders the header for branch cleanup.
 func RenderNukeHeader() string {
-	title := TitleStyle.Render("git-sweep --nuke")
+	title := TitleStyle.Render("git-sweep")
 	return fmt.Sprintf("\n  %s\n", title)
 }
 
-// RenderNukeSummary renders summary after nuke deletion
+// RenderNukeSummary renders summary after deletion.
 func RenderNukeSummary(deleted int, total int) string {
 	content := fmt.Sprintf("Deleted %s of %s branches",
 		SuccessStyle.Render(fmt.Sprintf("%d", deleted)),
@@ -186,48 +27,12 @@ func RenderNukeSummary(deleted int, total int) string {
 	return fmt.Sprintf("\n%s\n\n", Indent(box, 2))
 }
 
-// RenderError renders an error message
+// RenderError renders an error message.
 func RenderError(msg string) string {
 	return fmt.Sprintf("\n  %s %s\n\n", CrossStyle.Render(), ErrorStyle.Render(msg))
 }
 
-// RenderNoBranches renders message when no branches to delete
+// RenderNoBranches renders message when no branches are available for deletion.
 func RenderNoBranches() string {
 	return fmt.Sprintf("\n  %s %s\n\n", CheckStyle.Render(), MutedStyle.Render("No branches to delete."))
-}
-
-// Helper functions
-
-func filterToDelete(branches []sweep.BranchResult, includeGone bool) []sweep.BranchResult {
-	var result []sweep.BranchResult
-	for _, b := range branches {
-		if b.Eligible || (includeGone && b.Candidate) {
-			result = append(result, b)
-		}
-	}
-	return result
-}
-
-func filterCandidates(branches []sweep.BranchResult) []sweep.BranchResult {
-	var result []sweep.BranchResult
-	for _, b := range branches {
-		if b.Candidate {
-			result = append(result, b)
-		}
-	}
-	return result
-}
-
-func filterSkipped(branches []sweep.BranchResult) []sweep.BranchResult {
-	var result []sweep.BranchResult
-	for _, b := range branches {
-		if b.Skip != git.SkipNone {
-			result = append(result, b)
-		}
-	}
-	return result
-}
-
-func formatSkipReason(reason git.SkipReason) string {
-	return string(reason)
 }

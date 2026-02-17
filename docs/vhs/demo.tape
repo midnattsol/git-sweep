@@ -16,7 +16,7 @@ Enter
 Sleep 1s
 
 # Branch cleanup
-Type "git sweep --dry-run"
+Type "git sweep --yes"
 Enter
 Sleep 4s
 

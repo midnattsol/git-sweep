@@ -10,7 +10,7 @@ All-in-one git repository cleanup: branches, stashes, tags, and worktrees.
 
 ## Features
 
-- **Branches** - Safe cleanup with PR merge detection (squash-merge aware)
+- **Branches** - Interactive cleanup with smart suggestions (merged PR, gone upstream, stale)
 - **Stashes** - List and clean old stashes with context (date, branch, files)
 - **Tags** - Find and delete orphan tags (local without remote)
 - **Worktrees** - Detect and remove broken worktrees
@@ -22,7 +22,7 @@ All-in-one git repository cleanup: branches, stashes, tags, and worktrees.
 ### Quick install (recommended)
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/midnattsol/git-sweep/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/midnattsol/git-sweep/develop/install.sh | bash
 ```
 
 ### Go install
@@ -41,29 +41,11 @@ git config --global alias.sweep '!git-sweep'
 
 ### `git sweep` - Branch cleanup
 
-Safe branch cleanup for squash-merge workflows.
+Interactive branch cleanup with smart pre-selection.
 
 ```bash
-git sweep               # Delete branches with gone upstream
-git sweep --dry-run     # Only show, don't delete
-git sweep --force       # Delete without confirmation
-git sweep --only-merged # Only delete if PR was merged (stricter)
-git sweep --brief       # Hide skipped branches
-```
-
-**What gets deleted:**
-- Branches where upstream no longer exists (after `git fetch --prune`)
-- Use `--only-merged` to also require a confirmed merged PR
-
-Branches that were never pushed are ignored - your local experiments stay safe.
-
-#### Nuke mode
-
-Interactive picker to delete any branch (except protected). Use when you want full control.
-
-```bash
-git sweep --nuke       # Interactive multi-select
-git sweep --nuke --yes # Delete all suggested without asking
+git sweep       # Open interactive picker
+git sweep --yes # Delete all suggested without interaction
 ```
 
 **What gets suggested for deletion:**
@@ -75,16 +57,13 @@ Stale detection helps clean up old local branches you may have forgotten about. 
 
 #### Branch categories
 
-| Category | Description | Normal mode | Nuke mode |
-|----------|-------------|-------------|-----------|
-| **Gone** | Upstream deleted | ✅ Deletes | ✅ Suggested |
-| **Gone + Merged** | Upstream deleted + merged PR | ✅ Deletes | ✅ Suggested |
-| **Stale** | No upstream, old commits (>30d) | Ignored | ✅ Suggested |
-| **Orphan** | No upstream, recent commits | Ignored | Selectable |
-| **Active** | Has active upstream | Ignored | Selectable |
-| **Protected** | Current or protected branch | Skipped | Skipped |
-
-With `--only-merged`, normal mode only deletes branches that have both gone upstream AND a confirmed merged PR.
+| Category | Description | Behavior |
+|----------|-------------|----------|
+| **Suggested** | Merged PR or stale local branch | Pre-selected in picker |
+| **Gone** | Upstream deleted (no merged PR found) | Pre-selected in picker |
+| **Orphan** | No upstream, recent commits | Selectable |
+| **Active** | Has active upstream | Selectable |
+| **Protected** | Current or protected branch | Skipped |
 
 ### `git sweep stash` - Stash cleanup
 
@@ -143,7 +122,7 @@ Configure via environment variables. Works great with [direnv](https://direnv.ne
 | `GIT_SWEEP_REMOTE` | `origin` | Remote to use |
 | `GIT_SWEEP_PROTECTED` | `master,main,develop` | Protected branch patterns (overrides config) |
 | `GIT_SWEEP_LIMIT` | `50` | Max PRs to scan |
-| `GIT_SWEEP_STALE_DAYS` | `30` | Days until a local branch is considered "stale" in nuke mode |
+| `GIT_SWEEP_STALE_DAYS` | `30` | Days until a local branch is considered "stale" |
 | `GIT_SWEEP_NO_COLOR` | `false` | Disable colors |
 
 ### Protected branches
