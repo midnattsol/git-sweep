@@ -127,3 +127,28 @@ func DeleteBranch(name string) error {
 func IsOnRemote(upstream, remote string) bool {
 	return strings.HasPrefix(upstream, remote+"/")
 }
+
+// DefaultBranch returns the default branch for the remote (from origin/HEAD)
+func DefaultBranch(remote string) (string, error) {
+	ref := fmt.Sprintf("refs/remotes/%s/HEAD", remote)
+	cmd := exec.Command("git", "symbolic-ref", ref)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("no default branch found for %s", remote)
+	}
+	// Output is like "refs/remotes/origin/main" -> extract "main"
+	full := strings.TrimSpace(string(out))
+	prefix := fmt.Sprintf("refs/remotes/%s/", remote)
+	return strings.TrimPrefix(full, prefix), nil
+}
+
+// CheckoutBranch switches to the specified branch
+func CheckoutBranch(name string) error {
+	cmd := exec.Command("git", "checkout", name)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to checkout %s: %s", name, stderr.String())
+	}
+	return nil
+}

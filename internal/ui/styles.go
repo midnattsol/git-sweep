@@ -131,3 +131,19 @@ func Indent(s string, n int) string {
 	}
 	return strings.Join(lines, "\n")
 }
+
+// KeyStyle renders a keyboard key
+var KeyStyle = lipgloss.NewStyle().
+	Foreground(Cyan)
+
+// RenderHelp renders a help line with styled keys
+// Format: key1 action1 · key2 action2 · ...
+func RenderHelp(items [][2]string) string {
+	var parts []string
+	for _, item := range items {
+		key := KeyStyle.Render(item[0])
+		action := MutedStyle.Render(item[1])
+		parts = append(parts, key+" "+action)
+	}
+	return strings.Join(parts, MutedStyle.Render("  ·  "))
+}

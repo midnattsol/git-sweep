@@ -1,6 +1,7 @@
 package sweep
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/midnattsol/git-sweep/internal/config"
@@ -25,6 +26,7 @@ type BranchResult struct {
 	Category  Category
 	Eligible  bool // Has merged PR - safe to delete
 	Suggested bool
+	IsCurrent bool // This is the currently checked out branch
 }
 
 // Stats holds sweep statistics
@@ -57,16 +59,13 @@ func AnalyzeBranches(cfg *config.Config, mergedPRs map[string]bool) (*Result, er
 	staleThreshold := time.Now().AddDate(0, 0, -cfg.StaleDays)
 
 	for _, b := range branches {
-		br := BranchResult{Branch: b}
+		br := BranchResult{Branch: b, IsCurrent: b.IsCurrent}
 		result.Stats.Total++
 
 		isStale := !b.LastCommit.IsZero() && b.LastCommit.Before(staleThreshold)
 		hasMergedPR := mergedPRs != nil && mergedPRs[b.Name]
 
 		switch {
-		case b.IsCurrent:
-			br.Skip = git.SkipCurrent
-			br.Category = CategoryProtected
 		case cfg.IsProtected(b.Name):
 			br.Skip = git.SkipProtected
 			br.Category = CategoryProtected
@@ -113,9 +112,20 @@ func AnalyzeBranches(cfg *config.Config, mergedPRs map[string]bool) (*Result, er
 	return result, nil
 }
 
-// DeleteBranches deletes specific branches by name
-func DeleteBranches(names []string) (deleted int, errors []error) {
+// DeleteBranches deletes specific branches by name.
+// If currentBranch is in the list and defaultBranch is provided,
+// it will checkout to defaultBranch before deleting.
+func DeleteBranches(names []string, currentBranch, defaultBranch string) (deleted int, errors []error) {
 	for _, name := range names {
+		// If deleting current branch, checkout to default first
+		if name == currentBranch && defaultBranch != "" {
+			if err := git.CheckoutBranch(defaultBranch); err != nil {
+				errors = append(errors, fmt.Errorf("cannot delete current branch: %w", err))
+				continue
+			}
+			// Clear currentBranch so we don't try to checkout again
+			currentBranch = ""
+		}
 		if err := git.DeleteBranch(name); err != nil {
 			errors = append(errors, err)
 		} else {

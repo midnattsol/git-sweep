@@ -18,19 +18,25 @@ type PickerItem struct {
 	Selected      bool
 	Disabled      bool
 	DisableReason string
+	IsCurrent     bool
 }
 
 // PickerModel is a bubbletea model for multi-select
 type PickerModel struct {
-	items       []PickerItem
-	cursor      int
-	quitting    bool
-	confirmed   bool
-	providerErr error // Error from provider detection (shown in UI)
+	items         []PickerItem
+	cursor        int
+	quitting      bool
+	confirmed     bool
+	providerErr   error  // Error from provider detection (shown in UI)
+	defaultBranch string // Default branch for checkout when deleting current
+
+	// Confirmation popup state
+	confirming     bool
+	confirmMessage string
 }
 
 // NewPicker creates a new picker from sweep results
-func NewPicker(result *sweep.Result, providerErr error) PickerModel {
+func NewPicker(result *sweep.Result, providerErr error, defaultBranch string) PickerModel {
 	items := make([]PickerItem, 0, len(result.Branches))
 
 	for _, br := range result.Branches {
@@ -38,14 +44,15 @@ func NewPicker(result *sweep.Result, providerErr error) PickerModel {
 			Name:       br.Branch.Name,
 			Category:   br.Category,
 			LastCommit: br.Branch.LastCommit,
+			IsCurrent:  br.IsCurrent,
 		}
 
 		if br.Skip != "" {
 			item.Disabled = true
 			item.DisableReason = string(br.Skip)
 		} else {
-			// Pre-select suggested branches
-			item.Selected = br.Suggested
+			// Pre-select suggested branches (but not the current branch)
+			item.Selected = br.Suggested && !br.IsCurrent
 		}
 
 		items = append(items, item)
@@ -57,8 +64,9 @@ func NewPicker(result *sweep.Result, providerErr error) PickerModel {
 	})
 
 	return PickerModel{
-		items:       items,
-		providerErr: providerErr,
+		items:         items,
+		providerErr:   providerErr,
+		defaultBranch: defaultBranch,
 	}
 }
 
@@ -86,12 +94,33 @@ func (m PickerModel) Init() tea.Cmd {
 func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle confirmation popup state
+		if m.confirming {
+			switch strings.ToLower(msg.String()) {
+			case "y":
+				m.confirmed = true
+				return m, tea.Quit
+			case "n", "esc", "q", "ctrl+c":
+				m.confirming = false
+				return m, nil
+			}
+			return m, nil
+		}
+
+		// Normal picker state
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
 			m.quitting = true
 			return m, tea.Quit
 
 		case "enter":
+			// Check if current branch is selected
+			if m.hasCurrentSelected() && m.defaultBranch != "" {
+				m.confirming = true
+				m.confirmMessage = fmt.Sprintf("Will checkout to %s to delete current branch",
+					BranchStyle.Render(m.defaultBranch))
+				return m, nil
+			}
 			m.confirmed = true
 			return m, tea.Quit
 
@@ -141,67 +170,147 @@ func (m PickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// hasCurrentSelected returns true if the current branch is selected for deletion
+func (m PickerModel) hasCurrentSelected() bool {
+	for _, item := range m.items {
+		if item.IsCurrent && item.Selected {
+			return true
+		}
+	}
+	return false
+}
+
 func (m PickerModel) View() string {
 	var b strings.Builder
 
 	b.WriteString(RenderNukeHeader())
 	b.WriteString(fmt.Sprintf("\n  %s\n", MutedStyle.Render("Select branches to delete:")))
 
-	currentCategory := sweep.Category("")
+	// Show confirmation popup if confirming
+	if m.confirming {
+		b.WriteString("\n")
+		b.WriteString(m.renderConfirmPopup())
+		b.WriteString("\n")
+	} else {
+		currentCategory := sweep.Category("")
 
-	for i, item := range m.items {
-		// Print category header when it changes
-		if item.Category != currentCategory {
-			currentCategory = item.Category
-			b.WriteString("\n")
-			b.WriteString(fmt.Sprintf("  %s\n", categoryHeader(currentCategory)))
+		for i, item := range m.items {
+			// Print category header when it changes
+			if item.Category != currentCategory {
+				currentCategory = item.Category
+				b.WriteString("\n")
+				b.WriteString(fmt.Sprintf("  %s\n", categoryHeader(currentCategory)))
+			}
+
+			cursor := "  "
+			if i == m.cursor {
+				cursor = CursorStyle.Render() + " "
+			}
+
+			var checkbox string
+			if item.Disabled {
+				checkbox = MutedStyle.Render("▢")
+			} else if item.Selected {
+				checkbox = SuccessStyle.Render("▣")
+			} else {
+				checkbox = "▢"
+			}
+
+			name := item.Name
+			if i == m.cursor && !item.Disabled {
+				name = SelectedStyle.Render(name)
+			} else if item.Disabled {
+				name = MutedStyle.Render(name)
+			}
+
+			// Build the line
+			line := fmt.Sprintf("%s%s %s", cursor, checkbox, name)
+
+			// Add current indicator
+			if item.IsCurrent {
+				line += fmt.Sprintf("  %s", WarningStyle.Render("(current)"))
+			}
+
+			// Add age or reason
+			if item.Disabled && item.DisableReason != "" {
+				line += fmt.Sprintf("  %s", MutedStyle.Render(item.DisableReason))
+			} else if !item.LastCommit.IsZero() {
+				line += fmt.Sprintf("  %s", MutedStyle.Render(formatAge(item.LastCommit)))
+			}
+
+			b.WriteString(line + "\n")
 		}
 
-		cursor := "  "
-		if i == m.cursor {
-			cursor = CursorStyle.Render() + " "
+		// Provider warning if any
+		if m.providerErr != nil {
+			b.WriteString(fmt.Sprintf("\n  %s %s\n",
+				WarningStyle.Render("!"),
+				MutedStyle.Render(fmt.Sprintf("No PR info: %s", m.providerErr.Error()))))
 		}
-
-		var checkbox string
-		if item.Disabled {
-			checkbox = MutedStyle.Render("▢")
-		} else if item.Selected {
-			checkbox = SuccessStyle.Render("▣")
-		} else {
-			checkbox = "▢"
-		}
-
-		name := item.Name
-		if i == m.cursor && !item.Disabled {
-			name = SelectedStyle.Render(name)
-		} else if item.Disabled {
-			name = MutedStyle.Render(name)
-		}
-
-		// Build the line
-		line := fmt.Sprintf("%s%s %s", cursor, checkbox, name)
-
-		// Add age or reason
-		if item.Disabled && item.DisableReason != "" {
-			line += fmt.Sprintf("  %s", MutedStyle.Render(item.DisableReason))
-		} else if !item.LastCommit.IsZero() {
-			line += fmt.Sprintf("  %s", MutedStyle.Render(formatAge(item.LastCommit)))
-		}
-
-		b.WriteString(line + "\n")
 	}
 
-	// Provider warning if any
-	if m.providerErr != nil {
-		b.WriteString(fmt.Sprintf("\n  %s %s\n",
-			WarningStyle.Render("!"),
-			MutedStyle.Render(fmt.Sprintf("No PR info: %s", m.providerErr.Error()))))
+	// Help legend with symbols (not shown during confirmation)
+	if !m.confirming {
+		b.WriteString(fmt.Sprintf("\n  %s\n", Divider(55)))
+		help := RenderHelp([][2]string{
+			{"␣", "toggle"},
+			{"a", "all"},
+			{"s", "suggested"},
+			{"↵", "confirm"},
+			{"q", "quit"},
+		})
+		b.WriteString(fmt.Sprintf("  %s\n\n", help))
+	} else {
+		b.WriteString("\n")
 	}
 
-	// Help legend with symbols
-	b.WriteString(fmt.Sprintf("\n  %s\n", Divider(55)))
-	b.WriteString(fmt.Sprintf("  %s\n\n",
-		HelpStyle.Render("␣ toggle · a all · s suggested · ↵ confirm · q quit")))
+	return b.String()
+}
+
+func (m PickerModel) renderConfirmPopup() string {
+	var b strings.Builder
+
+	// Box dimensions
+	innerWidth := 53
+
+	// Top border
+	b.WriteString(fmt.Sprintf("  ┌%s┐\n", strings.Repeat("─", innerWidth)))
+
+	// Empty line
+	b.WriteString(fmt.Sprintf("  │%s│\n", strings.Repeat(" ", innerWidth)))
+
+	// Warning message (calculate visible length without ANSI codes)
+	msgContent := fmt.Sprintf("! Will checkout to %s to delete current branch", m.defaultBranch)
+	msgStyled := fmt.Sprintf("%s Will checkout to %s to delete current branch",
+		WarningStyle.Render("!"),
+		BranchStyle.Render(m.defaultBranch))
+	msgPadLeft := (innerWidth - len(msgContent)) / 2
+	msgPadRight := innerWidth - len(msgContent) - msgPadLeft
+	b.WriteString(fmt.Sprintf("  │%s%s%s│\n",
+		strings.Repeat(" ", msgPadLeft),
+		msgStyled,
+		strings.Repeat(" ", msgPadRight)))
+
+	// Empty line
+	b.WriteString(fmt.Sprintf("  │%s│\n", strings.Repeat(" ", innerWidth)))
+
+	// Buttons (visible length: "[Y] Confirm      [N] Cancel" = 27 chars)
+	btnVisible := "[Y] Confirm      [N] Cancel"
+	btnStyled := fmt.Sprintf("%s Confirm      %s Cancel",
+		SuccessStyle.Render("[Y]"),
+		ErrorStyle.Render("[N]"))
+	btnPadLeft := (innerWidth - len(btnVisible)) / 2
+	btnPadRight := innerWidth - len(btnVisible) - btnPadLeft
+	b.WriteString(fmt.Sprintf("  │%s%s%s│\n",
+		strings.Repeat(" ", btnPadLeft),
+		btnStyled,
+		strings.Repeat(" ", btnPadRight)))
+
+	// Empty line
+	b.WriteString(fmt.Sprintf("  │%s│\n", strings.Repeat(" ", innerWidth)))
+
+	// Bottom border
+	b.WriteString(fmt.Sprintf("  └%s┘", strings.Repeat("─", innerWidth)))
 
 	return b.String()
 }
@@ -275,8 +384,8 @@ func (m PickerModel) SelectedBranches() []string {
 }
 
 // RunPicker runs the interactive picker and returns selected branch names
-func RunPicker(result *sweep.Result, providerErr error) ([]string, error) {
-	m := NewPicker(result, providerErr)
+func RunPicker(result *sweep.Result, providerErr error, defaultBranch string) ([]string, error) {
+	m := NewPicker(result, providerErr, defaultBranch)
 	p := tea.NewProgram(m)
 
 	finalModel, err := p.Run()

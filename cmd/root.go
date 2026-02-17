@@ -135,6 +135,10 @@ func runBranchCleanup(cfg *config.Config) error {
 		return err
 	}
 
+	// Get current branch and default branch for potential checkout
+	currentBranch, _ := git.CurrentBranch()
+	defaultBranch, _ := git.DefaultBranch(cfg.Remote)
+
 	// Analyze branches (with or without merged PRs)
 	result, err := sweep.AnalyzeBranches(cfg, mergedPRs)
 	if err != nil {
@@ -153,8 +157,9 @@ func runBranchCleanup(cfg *config.Config) error {
 
 	if flagYes {
 		// No interaction, delete only suggested branches
+		// Note: current branch is never pre-selected as suggested
 		for _, br := range result.Branches {
-			if br.Suggested {
+			if br.Suggested && !br.IsCurrent {
 				toDelete = append(toDelete, br.Branch.Name)
 			}
 		}
@@ -165,8 +170,8 @@ func runBranchCleanup(cfg *config.Config) error {
 			return err
 		}
 
-		// Interactive picker
-		toDelete, err = ui.RunPicker(result, providerErr)
+		// Interactive picker (passes defaultBranch for current branch confirmation)
+		toDelete, err = ui.RunPicker(result, providerErr, defaultBranch)
 		if err != nil {
 			fmt.Print(ui.RenderError(err.Error()))
 			return err
@@ -184,13 +189,9 @@ func runBranchCleanup(cfg *config.Config) error {
 	}
 
 	// Delete selected branches
-	deleted, errors := sweep.DeleteBranches(toDelete)
+	deleted, errors := sweep.DeleteBranches(toDelete, currentBranch, defaultBranch)
 
-	// Show results
-	for _, name := range toDelete {
-		fmt.Printf("  %s %s\n", ui.CheckStyle.Render(), ui.BranchStyle.Render(name))
-	}
-
+	// Show errors if any
 	for _, err := range errors {
 		fmt.Printf("  %s %s\n", ui.CrossStyle.Render(), ui.ErrorStyle.Render(err.Error()))
 	}
