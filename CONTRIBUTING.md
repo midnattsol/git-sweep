@@ -71,7 +71,7 @@ Releases are fully automated using [Conventional Commits](https://www.convention
 
 ### How it works
 
-1. Push commits to `main` branch
+1. Push commits to `develop` branch
 2. [release-please](https://github.com/googleapis/release-please) creates/updates a Release PR
 3. When the Release PR is merged:
    - A new tag is created (e.g., `v2.1.0`)

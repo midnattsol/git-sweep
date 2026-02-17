@@ -118,9 +118,8 @@ main() {
   success "Installation complete!"
   echo ""
   echo "Usage:"
-  echo "  git sweep           # Safe mode (dry-run)"
-  echo "  git sweep --execute # Actually delete branches"
-  echo "  git sweep --nuke    # Interactive mode"
+  echo "  git sweep       # Interactive branch cleanup"
+  echo "  git sweep --yes # Delete all suggested branches"
   echo ""
 }
 

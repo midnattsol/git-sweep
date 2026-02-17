@@ -7,7 +7,7 @@ import (
 	"github.com/midnattsol/git-sweep/internal/git"
 )
 
-// Category represents the category of a branch for nuke mode
+// Category represents the branch classification used in interactive cleanup.
 type Category string
 
 const (
@@ -24,20 +24,16 @@ type BranchResult struct {
 	Skip      git.SkipReason
 	Category  Category
 	Eligible  bool // Has merged PR - safe to delete
-	Candidate bool // Upstream gone but no merged PR found
 	Suggested bool
-	Deleted   bool
-	DeleteErr error
 }
 
 // Stats holds sweep statistics
 type Stats struct {
-	Total      int
-	Candidates int
-	Eligible   int
-	Deleted    int
-	Skipped    int
-	Suggested  int
+	Total     int
+	Eligible  int
+	Deleted   int
+	Skipped   int
+	Suggested int
 }
 
 // Result contains the full sweep result
@@ -46,85 +42,9 @@ type Result struct {
 	Stats    Stats
 }
 
-// Analyze examines all branches and determines which are eligible for deletion
-func Analyze(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
-	branches, err := git.ListBranches(cfg.Remote)
-	if err != nil {
-		return nil, err
-	}
-
-	result := &Result{
-		Branches: make([]BranchResult, 0, len(branches)),
-	}
-
-	for _, b := range branches {
-		br := BranchResult{Branch: b}
-		result.Stats.Total++
-
-		// Check skip conditions
-		switch {
-		case b.IsCurrent:
-			br.Skip = git.SkipCurrent
-			result.Stats.Skipped++
-		case cfg.IsProtected(b.Name):
-			br.Skip = git.SkipProtected
-			result.Stats.Skipped++
-		case b.Upstream == "":
-			br.Skip = git.SkipNoUpstream
-			result.Stats.Skipped++
-		case !git.IsOnRemote(b.Upstream, cfg.Remote):
-			br.Skip = git.SkipWrongRemote
-			result.Stats.Skipped++
-		case !b.UpstreamGone && git.UpstreamExists(b.Upstream):
-			br.Skip = git.SkipUpstreamExists
-			result.Stats.Skipped++
-		default:
-			// Upstream is gone - this is a candidate
-			result.Stats.Candidates++
-			if mergedPRs[b.Name] {
-				// Has merged PR - eligible for deletion
-				br.Eligible = true
-				result.Stats.Eligible++
-			} else {
-				// No merged PR - candidate only (deletable with --candidates)
-				br.Candidate = true
-			}
-		}
-
-		result.Branches = append(result.Branches, br)
-	}
-
-	return result, nil
-}
-
-// Execute deletes all eligible branches
-func Execute(result *Result, includeCandidates bool) {
-	for i, br := range result.Branches {
-		shouldDelete := br.Eligible || (includeCandidates && br.Candidate)
-		if !shouldDelete {
-			continue
-		}
-
-		if err := git.DeleteBranch(br.Branch.Name); err != nil {
-			result.Branches[i].DeleteErr = err
-		} else {
-			result.Branches[i].Deleted = true
-			result.Stats.Deleted++
-		}
-	}
-}
-
-// CountToDelete returns the number of branches that would be deleted
-func CountToDelete(result *Result, includeCandidates bool) int {
-	if includeCandidates {
-		return result.Stats.Candidates
-	}
-	return result.Stats.Eligible
-}
-
-// AnalyzeForNuke returns all branches categorized for nuke mode
-// If mergedPRs is provided, branches with merged PRs are marked as Suggested
-func AnalyzeForNuke(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
+// AnalyzeBranches returns all branches categorized for interactive cleanup.
+// If mergedPRs is provided, branches with merged PRs are marked as Suggested.
+func AnalyzeBranches(cfg *config.Config, mergedPRs map[string]bool) (*Result, error) {
 	branches, err := git.ListBranches(cfg.Remote)
 	if err != nil {
 		return nil, err
